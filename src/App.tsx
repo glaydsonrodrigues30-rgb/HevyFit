@@ -903,7 +903,7 @@ export default function App() {
                           return (
                             <div key={exIdx} className="bg-slate-950/40 p-3 rounded-xl border border-slate-850/40 space-y-2">
                               <span className="text-xs text-slate-200 font-bold block">
-                                {details?.name || ex.exerciseId}
+                                {(details?.name || ex.exerciseId) || "Sem nome"}
                               </span>
                               
                               {/* Series logs listing in line */}

@@ -28,6 +28,66 @@ export default function ExerciseProgression({
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('Todos');
 
+  // Quick/Safe Exercise Logger states (Rule #1, #2, #3, #5)
+  const [workouts, setWorkouts] = useState<{ id: string; name: string; sets: number; reps: string; weight: number; rest: number }[]>(() => {
+    try {
+      const saved = localStorage.getItem('hevyfit_safe_quick_workouts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hevyfit_safe_quick_workouts', JSON.stringify(workouts));
+  }, [workouts]);
+
+  const [quickName, setQuickName] = useState('');
+  const [quickSets, setQuickSets] = useState('');
+  const [quickReps, setQuickReps] = useState('');
+  const [quickWeight, setQuickWeight] = useState('');
+  const [quickRest, setQuickRest] = useState('');
+
+  const handleAddQuickExercise = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = quickName.trim();
+    const sets = quickSets;
+    const reps = quickReps;
+    const weight = quickWeight;
+    const rest = quickRest;
+
+    // Rule 1: VALIDAR CAMPOS (OBRIGATÓRIO)
+    if (!name || !sets || !reps) {
+      alert("Preencha os dados do exercício");
+      return;
+    }
+
+    // Rule 2: GARANTIR FORMATO DO OBJETO
+    const newExercise = {
+      id: Date.now().toString(),
+      name: name || "",
+      sets: Number(sets),
+      reps: String(reps),
+      weight: Number(weight || 0),
+      rest: Number(rest || 60)
+    };
+
+    // Rule 3: ATUALIZAR ESTADO CORRETAMENTE (Usar setWorkouts(prev => [...prev, newExercise]))
+    try {
+      setWorkouts(prev => [...prev, newExercise]);
+      
+      // Clear inputs
+      setQuickName('');
+      setQuickSets('');
+      setQuickReps('');
+      setQuickWeight('');
+      setQuickRest('');
+    } catch (error) {
+      // Rule 5: LOGAR ERROS
+      console.error("Erro ao adicionar exercício:", newExercise);
+    }
+  };
+
   // Modal and form states
   const [showExerciseFormModal, setShowExerciseFormModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
@@ -401,7 +461,7 @@ export default function ExerciseProgression({
               >
                 <div className="space-y-0.5 truncate">
                   <span className={`font-bold text-xs truncate block ${isSelected ? 'text-lime-400' : 'text-slate-200'}`}>
-                    {ex.name}
+                    {ex.name || "Sem nome"}
                   </span>
                   <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
                     <span className="px-1 bg-slate-950 border border-slate-850 rounded text-[8px]">{ex.targetMuscle}</span>
@@ -421,6 +481,121 @@ export default function ExerciseProgression({
               </button>
             );
           })}
+        </div>
+
+        {/* Quick/Safe Exercise Form (Rule #1, #2, #3, #4, #5) */}
+        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-850 pb-2">
+            <span className="text-sm">⚡</span>
+            <h4 className="font-bold text-white text-xs uppercase tracking-wide">Adicionar Exercício Rápido (Seguro)</h4>
+          </div>
+
+          <form onSubmit={handleAddQuickExercise} className="space-y-3 text-xs">
+            <div className="space-y-1">
+              <label htmlFor="exercise-form-input-name" className="text-[10px] text-slate-400 font-bold uppercase block">Nome do Exercício</label>
+              <input
+                id="exercise-form-input-name"
+                type="text"
+                placeholder="Ex: Elevação Lateral, Tríceps Pulley"
+                value={quickName}
+                onChange={(e) => setQuickName(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label htmlFor="exercise-form-input-sets" className="text-[10px] text-slate-400 font-bold uppercase block">Séries</label>
+                <input
+                  id="exercise-form-input-sets"
+                  type="number"
+                  placeholder="Ex: 4"
+                  value={quickSets}
+                  onChange={(e) => setQuickSets(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="exercise-form-input-reps" className="text-[10px] text-slate-400 font-bold uppercase block">Reps</label>
+                <input
+                  id="exercise-form-input-reps"
+                  type="text"
+                  placeholder="Ex: 12"
+                  value={quickReps}
+                  onChange={(e) => setQuickReps(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label htmlFor="exercise-form-input-weight" className="text-[10px] text-slate-400 font-bold uppercase block">Carga (kg)</label>
+                <input
+                  id="exercise-form-input-weight"
+                  type="number"
+                  placeholder="Ex: 14"
+                  value={quickWeight}
+                  onChange={(e) => setQuickWeight(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="exercise-form-input-rest" className="text-[10px] text-slate-400 font-bold uppercase block">Descanso (s)</label>
+                <input
+                  id="exercise-form-input-rest"
+                  type="number"
+                  placeholder="Ex: 60"
+                  value={quickRest}
+                  onChange={(e) => setQuickRest(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                />
+              </div>
+            </div>
+
+            <button
+              id="btn-submit-quick-exercise"
+              type="submit"
+              className="w-full bg-lime-500 hover:bg-lime-600 active:scale-95 text-slate-950 font-bold py-2 rounded-xl transition shadow-md shadow-lime-500/10 text-center text-xs cursor-pointer"
+            >
+              Adicionar Exercício
+            </button>
+          </form>
+
+          {/* Quick-Added Workouts List (Rule #4 protection) */}
+          {workouts.length > 0 && (
+            <div className="space-y-2 border-t border-slate-850 pt-3">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios Recentes:</span>
+              <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                {workouts.map((exercise) => (
+                  <div
+                    key={exercise.id}
+                    className="bg-slate-950 border border-slate-850/60 p-2.5 rounded-xl flex items-center justify-between text-xs"
+                  >
+                    <div className="truncate">
+                      <span className="font-bold text-slate-200 block truncate text-[11px]">
+                        {exercise.name || "Sem nome"}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-mono">
+                        {exercise.sets} série(s) × {exercise.reps} reps | {exercise.weight}kg | {exercise.rest}s
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setWorkouts(prev => prev.filter(w => w.id !== exercise.id))}
+                      className="text-slate-500 hover:text-red-400 p-1 flex-shrink-0 cursor-pointer"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

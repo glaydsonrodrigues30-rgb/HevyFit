@@ -670,7 +670,7 @@ export default function WorkoutLog({
                         <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios inclusos:</span>
                         <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
                           {routine.exercises.map((item, id) => {
-                            const exName = availableExercises.find(e => e.id === item.exerciseId)?.name || item.exerciseId;
+                            const exName = availableExercises.find(e => e.id === item.exerciseId)?.name || "Sem nome";
                             return (
                               <div key={id} className="text-[11px] text-slate-300 flex flex-col gap-0.5 border-b border-slate-850/30 pb-1 last:border-0 last:pb-0">
                                 <div className="flex justify-between items-center">
@@ -812,7 +812,7 @@ export default function WorkoutLog({
                         <div className="space-y-0.5 text-left">
                           <h4 className="font-bold text-white text-sm flex items-center gap-2">
                             <span className="text-lime-400 font-mono">#{exIdx + 1}</span>
-                            {details?.name || item.exerciseId}
+                            {details?.name || "Sem nome"}
                           </h4>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 mt-1">
                             <span className="px-1.5 py-0.5 bg-slate-950 rounded border border-slate-850 font-semibold">{details?.targetMuscle}</span>
@@ -1422,7 +1422,7 @@ export default function WorkoutLog({
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[11px] text-white font-bold block">{exDetails?.name || item.exerciseId}</span>
+                                  <span className="text-[11px] text-white font-bold block">{exDetails?.name || "Sem nome"}</span>
                                   <button
                                     type="button"
                                     onClick={() => {
