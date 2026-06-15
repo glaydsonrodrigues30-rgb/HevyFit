@@ -38,17 +38,11 @@ import CycleSettings from './components/CycleSettings';
 import RestTimerOverlay from './components/RestTimerOverlay';
 import Login from './components/Login';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, logOut } from './lib/firebase';
+import { auth, logOut, db } from './lib/firebase';
+import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import {
-  syncLocalToFirebase,
-  loadUserDataFromFirestore,
-  saveUserCycle,
-  saveWorkoutSession,
-  deleteWorkoutSession,
-  saveRoutineTemplate,
-  deleteRoutineTemplate,
-  saveWeightProgress,
-  deleteWeightProgress
+  handleFirestoreError,
+  OperationType
 } from './lib/firebaseSync';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -60,9 +54,7 @@ export default function App() {
   // Auth and Guest States
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(() => {
-    return localStorage.getItem('hevyfit_is_guest') === 'true';
-  });
+  const [isGuest, setIsGuest] = useState(false);
 
   // Persistence States
   const [history, setHistory] = useState<WorkoutHistory[]>([]);
@@ -91,83 +83,81 @@ export default function App() {
     sets: number;
   } | null>(null);
 
-  // 1. Initial State Loading from LocalStorage first, then coordinate Firebase
+  // 1. Initial State Loading from Firebase, with offline memory fallback
   useEffect(() => {
-    // History
-    const localHistory = localStorage.getItem('hevyfit_history');
-    const histVal = localHistory ? JSON.parse(localHistory) : INITIAL_HISTORY;
-    setHistory(histVal);
-
-    // Weights
-    const localWeights = localStorage.getItem('hevyfit_weights');
-    const weightsVal = localWeights ? JSON.parse(localWeights) : INITIAL_WEIGHT_HISTORY;
-    setWeightHistory(weightsVal);
-
-    // Active Cycle
-    const localCycle = localStorage.getItem('hevyfit_cycle');
-    const cycleVal = localCycle ? JSON.parse(localCycle) : {
-      id: 'cycle_default',
-      name: 'Block de Hipertrofia do Inverno',
-      durationWeeks: 8,
-      currentWeek: 2,
-      startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
-      targetFocus: 'Ganho de Massa Muscular',
-      goalWeight: 78.5
-    };
-    setCurrentCycle(cycleVal);
-
-    // Exercises
-    const localExercises = localStorage.getItem('hevyfit_exercises');
-    const exercisesVal = localExercises ? JSON.parse(localExercises) : INITIAL_EXERCISES;
-    setExercises(exercisesVal);
-
-    // Routines
-    const localRoutines = localStorage.getItem('hevyfit_routines');
-    const routinesVal = localRoutines ? JSON.parse(localRoutines) : INITIAL_ROUTINES;
-    setRoutines(routinesVal);
-
-    // Active Workout (if left saved)
-    const localActiveWorkout = localStorage.getItem('hevyfit_active_workout');
-    if (localActiveWorkout) {
-      setActiveWorkout(JSON.parse(localActiveWorkout));
-    }
-
     // Connect to Firebase Authentication
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser(user);
         setAuthLoading(true);
 
         try {
-          // Perform automatic first-time migration of localStorage if they have no cloud data yet
-          await syncLocalToFirebase(user.uid, {
-            history: histVal,
-            routines: routinesVal,
-            weights: weightsVal,
-            cycle: cycleVal
-          });
+          const userDocRef = doc(db, 'users', user.uid);
+          const snap = await getDoc(userDocRef);
 
-          // Fetch fresh, full persistent data from Firestore
-          const firebaseData = await loadUserDataFromFirestore(user.uid);
-          
-          if (firebaseData) {
-            // Only update memory state if data actually exists in Firestore
-            if (firebaseData.history.length > 0) {
-              setHistory(firebaseData.history);
+          if (snap.exists()) {
+            const data = snap.data();
+            console.log("Firebase dados:", data);
+
+            if (data.workouts !== undefined) {
+              setHistory(data.workouts);
+            } else if (data.history !== undefined) {
+              setHistory(data.history);
             }
-            if (firebaseData.routines.length > 0) {
-              setRoutines(firebaseData.routines);
+            if (data.routines !== undefined) {
+              setRoutines(data.routines);
             }
-            if (firebaseData.weights.length > 0) {
-              setWeightHistory(firebaseData.weights);
+            if (data.weightHistory !== undefined) {
+              setWeightHistory(data.weightHistory);
+            } else if (data.weights !== undefined) {
+              setWeightHistory(data.weights);
             }
-            if (firebaseData.currentCycle) {
-              setCurrentCycle(firebaseData.currentCycle);
+            if (data.currentCycle !== undefined) {
+              setCurrentCycle(data.currentCycle);
             }
+            if (data.exercises !== undefined) {
+              setExercises(data.exercises);
+            }
+            if (data.activeWorkout !== undefined) {
+              setActiveWorkout(data.activeWorkout);
+            }
+          } else {
+            // First time login - initialize with initial templates
+            const initialUserData = {
+              userId: user.uid,
+              createdAt: new Date().toISOString(),
+              workouts: INITIAL_HISTORY,
+              history: INITIAL_HISTORY,
+              routines: INITIAL_ROUTINES,
+              weightHistory: INITIAL_WEIGHT_HISTORY,
+              weights: INITIAL_WEIGHT_HISTORY,
+              currentCycle: {
+                id: 'cycle_default',
+                name: 'Block de Hipertrofia do Inverno',
+                durationWeeks: 8,
+                currentWeek: 2,
+                startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+                targetFocus: 'Ganho de Massa Muscular',
+                goalWeight: 78.5
+              },
+              exercises: INITIAL_EXERCISES,
+              activeWorkout: null
+            };
+
+            await setDoc(userDocRef, initialUserData);
+            console.log("Firebase dados inicializados:", initialUserData);
+
+            setHistory(INITIAL_HISTORY);
+            setRoutines(INITIAL_ROUTINES);
+            setWeightHistory(INITIAL_WEIGHT_HISTORY);
+            setCurrentCycle(initialUserData.currentCycle);
+            setExercises(INITIAL_EXERCISES);
+            setActiveWorkout(null);
           }
         } catch (error) {
-          console.error('Error loading Firestore data on login:', error);
+          console.error('Error during initial Firebase load:', error);
         } finally {
+          setCurrentUser(user);
+          setIsGuest(false);
           setAuthLoading(false);
           setIsLoaded(true);
         }
@@ -181,36 +171,70 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. LocalStorage Sync triggers on changes
+  // Set default guest memory data when offline mode is requested
   useEffect(() => {
-    if (isLoaded) localStorage.setItem('hevyfit_history', JSON.stringify(history));
-  }, [history, isLoaded]);
-
-  useEffect(() => {
-    if (isLoaded) localStorage.setItem('hevyfit_weights', JSON.stringify(weightHistory));
-  }, [weightHistory, isLoaded]);
-
-  useEffect(() => {
-    if (isLoaded) {
-      if (currentCycle) localStorage.setItem('hevyfit_cycle', JSON.stringify(currentCycle));
-      else localStorage.removeItem('hevyfit_cycle');
+    if (!currentUser && isGuest) {
+      setHistory(INITIAL_HISTORY);
+      setWeightHistory(INITIAL_WEIGHT_HISTORY);
+      setCurrentCycle({
+        id: 'cycle_default',
+        name: 'Block de Hipertrofia do Inverno',
+        durationWeeks: 8,
+        currentWeek: 2,
+        startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+        targetFocus: 'Ganho de Massa Muscular',
+        goalWeight: 78.5
+      });
+      setExercises(INITIAL_EXERCISES);
+      setRoutines(INITIAL_ROUTINES);
+      setActiveWorkout(null);
     }
-  }, [currentCycle, isLoaded]);
+  }, [currentUser, isGuest]);
 
+  // Real-time Firestore synchronization for unified server data across all devices
   useEffect(() => {
-    if (isLoaded) localStorage.setItem('hevyfit_exercises', JSON.stringify(exercises));
-  }, [exercises, isLoaded]);
+    if (!currentUser) return;
 
-  useEffect(() => {
-    if (isLoaded) localStorage.setItem('hevyfit_routines', JSON.stringify(routines));
-  }, [routines, isLoaded]);
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    const unsubUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("Firebase dados:", data);
 
-  useEffect(() => {
-    if (isLoaded) {
-      if (activeWorkout) localStorage.setItem('hevyfit_active_workout', JSON.stringify(activeWorkout));
-      else localStorage.removeItem('hevyfit_active_workout');
-    }
-  }, [activeWorkout, isLoaded]);
+        if (data.workouts !== undefined) {
+          setHistory(data.workouts);
+        } else if (data.history !== undefined) {
+          setHistory(data.history);
+        }
+
+        if (data.routines !== undefined) {
+          setRoutines(data.routines);
+        }
+
+        if (data.weightHistory !== undefined) {
+          setWeightHistory(data.weightHistory);
+        } else if (data.weights !== undefined) {
+          setWeightHistory(data.weights);
+        }
+
+        if (data.currentCycle !== undefined) {
+          setCurrentCycle(data.currentCycle as TrainingCycle | null);
+        }
+
+        if (data.exercises !== undefined) {
+          setExercises(data.exercises);
+        }
+
+        if (data.activeWorkout !== undefined) {
+          setActiveWorkout(data.activeWorkout as ActiveWorkout | null);
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+    });
+
+    return () => unsubUser();
+  }, [currentUser]);
 
   // 3. Global Rest Timer Countdown interval tick hook
   useEffect(() => {
@@ -233,7 +257,7 @@ export default function App() {
   }, [isTimerActive, timerRemaining]);
 
   // Actions for Active Workout recording
-  const handleStartWorkout = (
+  const handleStartWorkout = async (
     name: string,
     routineExercises?: WorkoutRoutine['exercises']
   ) => {
@@ -262,13 +286,32 @@ export default function App() {
 
     setActiveWorkout(newActiveWorkout);
     setActiveTab('treinar'); // Switch to Train tab immediately
+
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          activeWorkout: newActiveWorkout
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error starting active workout in Firebase:', error);
+      }
+    }
   };
 
-  const handleCancelWorkout = () => {
+  const handleCancelWorkout = async () => {
     setActiveWorkout(null);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          activeWorkout: null
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error canceling active workout in Firebase:', error);
+      }
+    }
   };
 
-  const handleFinishWorkout = (comments: string) => {
+  const handleFinishWorkout = async (comments: string) => {
     if (!activeWorkout) return;
 
     // Filter sets that are completed
@@ -304,7 +347,15 @@ export default function App() {
 
     // Save to Firestore if user is authenticated
     if (currentUser) {
-      saveWorkoutSession(currentUser.uid, completedHistoryEntry);
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          workouts: updatedHistory,
+          history: updatedHistory,
+          activeWorkout: null
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error saving workout history to Firebase:', error);
+      }
     }
 
     // Calculate details for finished display celebration
@@ -354,25 +405,84 @@ export default function App() {
   };
 
   // Weight entry manipulations
-  const handleAddWeight = (weight: number, note: string) => {
+  const handleAddWeight = async (weight: number, note: string) => {
     const entry: WeightEntry = {
       id: 'weight_' + Date.now(),
       weight,
       timestamp: Date.now(),
       note: note || undefined
     };
-    setWeightHistory(prev => [...prev, entry]);
+    const updated = [...weightHistory, entry];
+    setWeightHistory(updated);
 
     if (currentUser) {
-      saveWeightProgress(currentUser.uid, entry);
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          weightHistory: updated,
+          weights: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error saving weight history to Firebase:', error);
+      }
     }
   };
 
-  const handleDeleteWeight = (id: string) => {
-    setWeightHistory(prev => prev.filter(w => w.id !== id));
+  const handleDeleteWeight = async (id: string) => {
+    const updated = weightHistory.filter(w => w.id !== id);
+    setWeightHistory(updated);
 
     if (currentUser) {
-      deleteWeightProgress(currentUser.uid, id);
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          weightHistory: updated,
+          weights: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error deleting weight from Firebase:', error);
+      }
+    }
+  };
+
+  // Exercise database manipulations
+  const handleAddExercise = async (newEx: Exercise) => {
+    const updated = [...exercises, newEx];
+    setExercises(updated);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          exercises: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error saving custom exercise to Firebase:', error);
+      }
+    }
+  };
+
+  const handleUpdateExercise = async (updatedEx: Exercise) => {
+    const updated = exercises.map(e => e.id === updatedEx.id ? updatedEx : e);
+    setExercises(updated);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          exercises: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error updating custom exercise in Firebase:', error);
+      }
+    }
+  };
+
+  const handleDeleteExercise = async (id: string) => {
+    const updated = exercises.filter(e => e.id !== id);
+    setExercises(updated);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          exercises: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error deleting custom exercise in Firebase:', error);
+      }
     }
   };
 
@@ -665,30 +775,62 @@ export default function App() {
             onStartWorkout={handleStartWorkout}
             onCancelWorkout={handleCancelWorkout}
             onFinishWorkout={handleFinishWorkout}
-            onUpdateActiveWorkout={(w) => setActiveWorkout(w)}
+            onUpdateActiveWorkout={async (w) => {
+              setActiveWorkout(w);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    activeWorkout: w
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error auto-saving active workout:', error);
+                }
+              }
+            }}
             onTriggerRestTimer={handleTriggerRestTimer}
             availableExercises={exercises}
-            onAddExercise={(newEx) => setExercises(prev => {
-              const updated = [...prev, newEx];
-              localStorage.setItem('hevyfit_exercises', JSON.stringify(updated));
-              return updated;
-            })}
+            onAddExercise={handleAddExercise}
+            onUpdateExercise={handleUpdateExercise}
             routines={routines}
-            onAddRoutine={(newRoutine) => setRoutines(prev => {
-              const updated = [...prev, newRoutine];
-              localStorage.setItem('hevyfit_routines', JSON.stringify(updated));
-              return updated;
-            })}
-            onUpdateRoutine={(updatedRoutine) => setRoutines(prev => {
-              const updated = prev.map(r => r.id === updatedRoutine.id ? updatedRoutine : r);
-              localStorage.setItem('hevyfit_routines', JSON.stringify(updated));
-              return updated;
-            })}
-            onDeleteRoutine={(id) => setRoutines(prev => {
-              const updated = prev.filter(r => r.id !== id);
-              localStorage.setItem('hevyfit_routines', JSON.stringify(updated));
-              return updated;
-            })}
+            onAddRoutine={async (newRoutine) => {
+              const updated = [...routines, newRoutine];
+              setRoutines(updated);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    routines: updated
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error saving routine to Firebase:', error);
+                }
+              }
+            }}
+            onUpdateRoutine={async (updatedRoutine) => {
+              const updated = routines.map(r => r.id === updatedRoutine.id ? updatedRoutine : r);
+              setRoutines(updated);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    routines: updated
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error updating routine in Firebase:', error);
+                }
+              }
+            }}
+            onDeleteRoutine={async (id) => {
+              const updated = routines.filter(r => r.id !== id);
+              setRoutines(updated);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    routines: updated
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error deleting routine from Firebase:', error);
+                }
+              }
+            }}
           />
         )}
 
@@ -793,8 +935,19 @@ export default function App() {
                             </span>
                             <button
                               id={`btn-confirm-delete-${workout.id}`}
-                              onClick={() => {
-                                setHistory(prev => prev.filter(w => w.id !== workout.id));
+                              onClick={async () => {
+                                const updated = history.filter(w => w.id !== workout.id);
+                                setHistory(updated);
+                                if (currentUser) {
+                                  try {
+                                    await setDoc(doc(db, 'users', currentUser.uid), {
+                                      workouts: updated,
+                                      history: updated
+                                    }, { merge: true });
+                                  } catch (error) {
+                                    console.error('Error deleting workout in Firebase:', error);
+                                  }
+                                }
                                 setDeletingWorkoutId(null);
                               }}
                               className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 font-bold rounded-lg text-[10px] uppercase transition"
@@ -832,21 +985,9 @@ export default function App() {
           <ExerciseProgression
             history={history}
             availableExercises={exercises}
-            onAddExercise={(newEx) => setExercises(prev => {
-              const updated = [...prev, newEx];
-              localStorage.setItem('hevyfit_exercises', JSON.stringify(updated));
-              return updated;
-            })}
-            onUpdateExercise={(updatedEx) => setExercises(prev => {
-              const updated = prev.map(e => e.id === updatedEx.id ? updatedEx : e);
-              localStorage.setItem('hevyfit_exercises', JSON.stringify(updated));
-              return updated;
-            })}
-            onDeleteExercise={(id) => setExercises(prev => {
-              const updated = prev.filter(e => e.id !== id);
-              localStorage.setItem('hevyfit_exercises', JSON.stringify(updated));
-              return updated;
-            })}
+            onAddExercise={handleAddExercise}
+            onUpdateExercise={handleUpdateExercise}
+            onDeleteExercise={handleDeleteExercise}
           />
         )}
 
@@ -862,8 +1003,30 @@ export default function App() {
         {activeTab === 'ciclo' && (
           <CycleSettings
             currentCycle={currentCycle}
-            onSaveCycle={(cycle) => setCurrentCycle(cycle)}
-            onRestartCycle={() => setCurrentCycle(null)}
+            onSaveCycle={async (cycle) => {
+              setCurrentCycle(cycle);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    currentCycle: cycle
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error saving cycle to Firebase:', error);
+                }
+              }
+            }}
+            onRestartCycle={async () => {
+              setCurrentCycle(null);
+              if (currentUser) {
+                try {
+                  await setDoc(doc(db, 'users', currentUser.uid), {
+                    currentCycle: null
+                  }, { merge: true });
+                } catch (error) {
+                  console.error('Error resetting cycle in Firebase:', error);
+                }
+              }
+            }}
           />
         )}
 

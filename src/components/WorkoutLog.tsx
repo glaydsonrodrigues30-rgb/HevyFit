@@ -23,6 +23,7 @@ interface WorkoutLogProps {
   onUpdateRoutine?: (routine: WorkoutRoutine) => void;
   onDeleteRoutine?: (id: string) => void;
   onAddExercise?: (exercise: Exercise) => void;
+  onUpdateExercise?: (exercise: Exercise) => void;
 }
 
 export default function WorkoutLog({
@@ -38,7 +39,8 @@ export default function WorkoutLog({
   onAddRoutine,
   onUpdateRoutine,
   onDeleteRoutine,
-  onAddExercise
+  onAddExercise,
+  onUpdateExercise
 }: WorkoutLogProps) {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState('');
@@ -71,6 +73,10 @@ export default function WorkoutLog({
 
   // Routine Delete State
   const [deletingRoutineId, setDeletingRoutineId] = useState<string | null>(null);
+
+  // Exercise Rename States
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingExerciseName, setEditingExerciseName] = useState('');
 
   const TARGET_MUSCLES_OPTIONS = [
     'Peito',
@@ -132,6 +138,22 @@ export default function WorkoutLog({
     setShowInlineExerciseModal(false);
     setShowAddExerciseToRoutineModal(false);
     setRoutineExerciseSearch('');
+  };
+
+  const handleSaveExerciseNameEdit = (exerciseId: string) => {
+    if (!editingExerciseName.trim()) {
+      alert('O nome do exercício não pode ser vazio.');
+      return;
+    }
+    const exDetails = availableExercises.find(e => e.id === exerciseId);
+    if (exDetails) {
+      onUpdateExercise?.({
+        ...exDetails,
+        name: editingExerciseName.trim()
+      });
+    }
+    setEditingExerciseId(null);
+    setEditingExerciseName('');
   };
 
   const handleCreateRoutineTrigger = () => {
@@ -1358,12 +1380,63 @@ export default function WorkoutLog({
                   <div className="space-y-4">
                     {routineFormExercises.map((item, id) => {
                       const exDetails = availableExercises.find(e => e.id === item.exerciseId);
+                      const isEditingName = editingExerciseId === item.exerciseId;
                       return (
                         <div key={item.exerciseId} className="bg-slate-950 border border-slate-850 rounded-xl p-4 space-y-3">
                           <div className="flex items-center justify-between border-b border-slate-850/60 pb-2">
-                            <div className="space-y-0.5">
-                              <span className="text-[11px] text-white font-bold block">{exDetails?.name || item.exerciseId}</span>
-                              <span className="text-[9px] text-slate-500 font-mono tracking-wide">{exDetails?.targetMuscle} • {exDetails?.equipment}</span>
+                            <div className="space-y-1 flex-grow mr-2">
+                              {isEditingName ? (
+                                <div className="flex items-center gap-1.5 w-full">
+                                  <input
+                                    type="text"
+                                    value={editingExerciseName}
+                                    onChange={(e) => setEditingExerciseName(e.target.value)}
+                                    placeholder="Nome do exercício"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleSaveExerciseNameEdit(item.exerciseId);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingExerciseId(null);
+                                      }
+                                    }}
+                                    className="bg-slate-900 border border-lime-500 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-650 outline-none w-full max-w-[240px] font-bold"
+                                    autoFocus
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveExerciseNameEdit(item.exerciseId)}
+                                    className="p-1 bg-lime-500/10 hover:bg-lime-500/20 text-lime-400 rounded-md transition"
+                                    title="Salvar"
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingExerciseId(null)}
+                                    className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-md transition"
+                                    title="Cancelar"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[11px] text-white font-bold block">{exDetails?.name || item.exerciseId}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingExerciseId(item.exerciseId);
+                                      setEditingExerciseName(exDetails?.name || '');
+                                    }}
+                                    className="text-slate-500 hover:text-lime-400 p-0.5 rounded transition"
+                                    title="Editar nome"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                              <span className="text-[9px] text-slate-500 font-mono tracking-wide block">{exDetails?.targetMuscle} • {exDetails?.equipment}</span>
                             </div>
                             <button
                               id={`btn-remove-exercise-from-routine-${item.exerciseId}`}

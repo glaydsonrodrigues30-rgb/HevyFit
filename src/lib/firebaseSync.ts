@@ -8,7 +8,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle } from '../types';
+import { WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -295,3 +295,32 @@ export const deleteWeightProgress = async (userId: string, weightId: string) => 
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
+
+/**
+ * Saves or updates a custom exercise definition in Firestore.
+ */
+export const saveCustomExercise = async (userId: string, exercise: Exercise) => {
+  const path = `users/${userId}/exercises/${exercise.id}`;
+  try {
+    const ref = doc(db, 'users', userId, 'exercises', exercise.id);
+    await setDoc(ref, exercise);
+  } catch (error) {
+    console.error('Error saving custom exercise:', error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+/**
+ * Deletes a custom exercise definition from Firestore.
+ */
+export const deleteCustomExercise = async (userId: string, exerciseId: string) => {
+  const path = `users/${userId}/exercises/${exerciseId}`;
+  try {
+    const ref = doc(db, 'users', userId, 'exercises', exerciseId);
+    await deleteDoc(ref);
+  } catch (error) {
+    console.error('Error deleting custom exercise:', error);
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+

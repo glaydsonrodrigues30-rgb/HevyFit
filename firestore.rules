@@ -39,11 +39,22 @@ service cloud.firestore {
       return !('id' in data) || (data.id is string && data.id.size() <= 128);
     }
 
+    // 5. Exercise Validation Helper
+    function isValidExercise(data) {
+      return !('id' in data) || (data.id is string && data.id.size() <= 128);
+    }
+
     // Athlete namespace: Users and subcollections
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId) && isValidUser(request.resource.data);
       allow delete: if isOwner(userId);
+
+      match /exercises/{exerciseId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidId(exerciseId) && isValidExercise(request.resource.data);
+        allow delete: if isOwner(userId) && isValidId(exerciseId);
+      }
 
       match /history/{workoutId} {
         allow read: if isOwner(userId);
