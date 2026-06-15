@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dumbbell, Sparkles, Activity, Clock, Award, ShieldAlert, ArrowRight } from 'lucide-react';
 import { signInWithGoogle } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 interface LoginProps {
   onLoginSuccess: (user: any) => void;
@@ -10,24 +11,50 @@ interface LoginProps {
 
 export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps) {
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<{
+    code?: string;
+    message: string;
+    isUnauthorizedDomain?: boolean;
+  } | null>(null);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    setErrorMsg(null);
+    setErrorDetails(null);
     try {
       const user = await signInWithGoogle();
       if (user) {
         onLoginSuccess(user);
       } else {
-        setErrorMsg('Não foi possível obter os dados do usuário do Google.');
+        setErrorDetails({
+          message: 'Não foi possível obter os dados do usuário do Google.'
+        });
       }
     } catch (error: any) {
-      console.error(error);
-      if (error && error.code === 'auth/popup-blocked') {
-        setErrorMsg('O pop-up de login foi bloqueado pelo seu navegador. Por favor, permita pop-ups para este site.');
+      console.error('Google login error captured:', error);
+      const errCode = error?.code || '';
+      const errMsg = error?.message || String(error);
+
+      if (errCode === 'auth/popup-blocked') {
+        setErrorDetails({
+          code: errCode,
+          message: 'O pop-up de login foi bloqueado pelo seu navegador. Por favor, permita pop-ups para este site e tente novamente.'
+        });
+      } else if (
+        errCode === 'auth/unauthorized-domain' ||
+        errMsg.includes('auth/unauthorized-domain') ||
+        errMsg.toLowerCase().includes('unauthorized domain') ||
+        errMsg.toLowerCase().includes('unauthorized-domain')
+      ) {
+        setErrorDetails({
+          code: 'auth/unauthorized-domain',
+          message: 'Este domínio não está cadastrado como autorizado nas configurações do Firebase.',
+          isUnauthorizedDomain: true
+        });
       } else {
-        setErrorMsg('Ocorreu um erro ao fazer login com o Google. Tente novamente.');
+        setErrorDetails({
+          code: errCode,
+          message: `Erro ao fazer login com o Google: ${error.message || error || 'Tente novamente.'}`
+        });
       }
     } finally {
       setLoading(false);
@@ -107,15 +134,52 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
 
         {/* Error Message banner */}
         <AnimatePresence>
-          {errorMsg && (
+          {errorDetails && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="w-full mb-5 text-left p-3.5 bg-red-950/35 border border-red-900/30 rounded-xl text-xs text-red-300 flex gap-2.5 items-start"
+              className="w-full mb-5 text-left"
             >
-              <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+              {errorDetails.isUnauthorizedDomain ? (
+                <div className="w-full p-4 bg-amber-950/40 border border-amber-500/20 rounded-2xl text-xs text-amber-200 flex flex-col gap-3 relative overflow-hidden shadow-lg animate-fade-in">
+                  <div className="flex gap-2.5 items-start">
+                    <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                    <div className="space-y-1">
+                      <h4 className="font-extrabold text-amber-300 font-mono text-[11px] uppercase tracking-wider">Domínio Não Autorizado no Firebase</h4>
+                      <p className="text-[11px] text-amber-200/80 leading-relaxed font-medium">
+                        O Firebase bloqueia chamadas de login a partir de novos domínios por segurança até que você o adicione explicitamente no Console.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-2 font-sans">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-400">Domínio atual:</span>
+                      <span className="font-mono text-lime-400 font-bold bg-lime-500/10 px-2 py-0.5 rounded select-all">{window.location.hostname}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-400">Firebase Projeto:</span>
+                      <span className="font-mono text-slate-300 font-bold bg-slate-800 px-2 py-0.5 rounded">{firebaseConfig.projectId}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-amber-500/10 text-[11px]">
+                    <p className="font-bold text-amber-200">Como corrigir (Super Simples!):</p>
+                    <ol className="list-decimal list-inside space-y-1 text-amber-200/85 pl-1 leading-normal font-medium">
+                      <li>Acesse o <a href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`} target="_blank" rel="noopener noreferrer" className="underline text-lime-400 hover:text-lime-300 font-extrabold pb-0.5">Console do Firebase do seu projeto (Clique Aqui)</a>.</li>
+                      <li>Clique na aba <strong className="text-white">Configurações</strong> (ou Settings) no topo da tela do Authentication.</li>
+                      <li>No menu lateral esquerdo, selecione <strong className="text-white">Domínios Autorizados</strong> (Authorized Domains).</li>
+                      <li>Clique em <strong className="text-lime-400 font-bold">Adicionar domínio</strong> e insira: <code className="font-mono font-bold text-lime-400 bg-slate-950/50 px-1.5 py-0.5 rounded select-all">{window.location.hostname}</code></li>
+                    </ol>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full p-3.5 bg-red-950/35 border border-red-900/30 rounded-2xl text-xs text-red-300 flex gap-2.5 items-start">
+                  <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                  <span className="leading-snug">{errorDetails.message}</span>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
