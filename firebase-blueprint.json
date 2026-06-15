@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Store the user public profile and current cycle configuration",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User identifier" },
+        "name": { "type": "string", "description": "Full name of the athlete" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoURL": { "type": "string", "description": "URL of the user profile image" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile registration time" },
+        "currentCycle": { "type": "object", "description": "Active training cycle" }
+      },
+      "required": ["userId", "name", "email"]
+    },
+    "Workout": {
+      "title": "Workout",
+      "description": "Logged workout session containing exercises and sets performance metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique workout log ID" },
+        "name": { "type": "string", "description": "Workout routine name (e.g., Push Day)" },
+        "startTime": { "type": "number", "description": "Epoch millisecond timestamp of workout launch" },
+        "endTime": { "type": "number", "description": "Epoch millisecond timestamp of workout completion" },
+        "durationMs": { "type": "number", "description": "Total active millisecond duration" },
+        "comments": { "type": "string", "description": "User comments or notes about the session" },
+        "cycleWeek": { "type": "number", "description": "The specific cycle week this workout falls into" },
+        "exercises": { "type": "array", "description": "Ordered list of exercises completed with sets performance" }
+      },
+      "required": ["id", "name", "startTime", "endTime", "durationMs", "exercises"]
+    },
+    "Routine": {
+      "title": "Routine",
+      "description": "Predefined workout routine schemas serving as instant templates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique template ID" },
+        "name": { "type": "string", "description": "Name of the training routine" },
+        "description": { "type": "string", "description": "Descriptive subtitle or goal notes" },
+        "exercises": { "type": "array", "description": "Predefined default reps, sets arrangement and rest preferences" }
+      },
+      "required": ["id", "name", "exercises"]
+    },
+    "WeightEntry": {
+      "title": "WeightEntry",
+      "description": "Individual weight measurements tracked over time",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique weight item ID" },
+        "weight": { "type": "number", "description": "Weight representation in kilograms" },
+        "timestamp": { "type": "number", "description": "Epoch millisecond timestamp of tracking instant" },
+        "note": { "type": "string", "description": "Optional notes or morning/night annotations" }
+      },
+      "required": ["id", "weight", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Registered athletes and general configurations"
+    },
+    "/users/{userId}/history/{workoutId}": {
+      "schema": "Workout",
+      "description": "Historic log logs belonging to specific athlete"
+    },
+    "/users/{userId}/routines/{routineId}": {
+      "schema": "Routine",
+      "description": "Custom templates for training workout loops"
+    },
+    "/users/{userId}/weights/{weightId}": {
+      "schema": "WeightEntry",
+      "description": "Bodyweight trends of the athlete"
+    }
+  }
+}

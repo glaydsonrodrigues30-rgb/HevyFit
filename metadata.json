@@ -1,0 +1,6 @@
+{
+  "name": "HevyFit - Tracker de Treino",
+  "description": "Aplicativo para registro de treinos estilo Hevy, com timer de descanso, evolução de cargas, controle de ciclos e peso corporal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
