@@ -82,3 +82,31 @@ export interface WorkoutRoutine {
     observations?: string;
   }[];
 }
+
+export interface StandardExercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  weight: number;
+  rest: number;
+  notes: string;
+}
+
+export interface StandardWorkout {
+  id: string;
+  name: string;
+  exercises: StandardExercise[];
+}
+
+export interface UserDocProfile {
+  userId: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string;
+  createdAt?: string;
+  currentCycle?: TrainingCycle | null;
+  lastSeen?: string;
+}
+
+

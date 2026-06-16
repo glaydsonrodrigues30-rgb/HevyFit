@@ -5,9 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, Trophy, History, Dumbbell, TrendingUp, Calendar, ArrowRight, Plus, Edit, Trash2, X } from 'lucide-react';
-import { Exercise, WorkoutHistory } from '../types';
+import { Exercise, WorkoutHistory, StandardWorkout, StandardExercise } from '../types';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
 import { motion, AnimatePresence } from 'motion/react';
+import { TEXTS } from '../texts';
 
 interface ExerciseProgressionProps {
   history: WorkoutHistory[];
@@ -15,6 +16,9 @@ interface ExerciseProgressionProps {
   onAddExercise?: (exercise: Exercise) => void;
   onUpdateExercise?: (exercise: Exercise) => void;
   onDeleteExercise?: (id: string) => void;
+  standardWorkouts?: StandardWorkout[];
+  onAddStandardWorkout?: (newWorkout: StandardWorkout) => void;
+  onDeleteStandardWorkout?: (id: string) => void;
 }
 
 export default function ExerciseProgression({
@@ -22,25 +26,18 @@ export default function ExerciseProgression({
   availableExercises = INITIAL_EXERCISES,
   onAddExercise,
   onUpdateExercise,
-  onDeleteExercise
+  onDeleteExercise,
+  standardWorkouts = [],
+  onAddStandardWorkout,
+  onDeleteStandardWorkout
 }: ExerciseProgressionProps) {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>('bench_press');
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('Todos');
 
   // Quick/Safe Exercise Logger states (Rule #1, #2, #3, #5)
-  const [workouts, setWorkouts] = useState<{ id: string; name: string; sets: number; reps: string; weight: number; rest: number }[]>(() => {
-    try {
-      const saved = localStorage.getItem('hevyfit_safe_quick_workouts');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('hevyfit_safe_quick_workouts', JSON.stringify(workouts));
-  }, [workouts]);
+  const [tempExercises, setTempExercises] = useState<StandardExercise[]>([]);
+  const [workoutName, setWorkoutName] = useState('');
 
   const [quickName, setQuickName] = useState('');
   const [quickSets, setQuickSets] = useState('');
@@ -63,18 +60,19 @@ export default function ExerciseProgression({
     }
 
     // Rule 2: GARANTIR FORMATO DO OBJETO
-    const newExercise = {
-      id: Date.now().toString(),
+    const newExercise: StandardExercise = {
+      id: 'ex_' + Date.now().toString(),
       name: name || "",
       sets: Number(sets),
       reps: String(reps),
       weight: Number(weight || 0),
-      rest: Number(rest || 60)
+      rest: Number(rest || 60),
+      notes: ''
     };
 
-    // Rule 3: ATUALIZAR ESTADO CORRETAMENTE (Usar setWorkouts(prev => [...prev, newExercise]))
+    // Rule 3: ATUALIZAR ESTADO CORRETAMENTE (Usar setTempExercises(prev => [...prev, newExercise]))
     try {
-      setWorkouts(prev => [...prev, newExercise]);
+      setTempExercises(prev => [...prev, newExercise]);
       
       // Clear inputs
       setQuickName('');
@@ -84,8 +82,25 @@ export default function ExerciseProgression({
       setQuickRest('');
     } catch (error) {
       // Rule 5: LOGAR ERROS
-      console.error("Erro ao adicionar exercício:", newExercise);
+      console.error("Erro ao adicionar exercício temporário:", newExercise, error);
     }
+  };
+
+  const handleSaveStandardWorkout = () => {
+    const trimmedName = workoutName.trim();
+    if (!trimmedName || tempExercises.length === 0) return;
+
+    const newWorkout: StandardWorkout = {
+      id: 'workout_' + Date.now().toString(),
+      name: trimmedName,
+      exercises: tempExercises
+    };
+
+    if (onAddStandardWorkout) {
+      onAddStandardWorkout(newWorkout);
+    }
+    setTempExercises([]);
+    setWorkoutName('');
   };
 
   // Modal and form states
@@ -560,19 +575,19 @@ export default function ExerciseProgression({
               type="submit"
               className="w-full bg-lime-500 hover:bg-lime-600 active:scale-95 text-slate-950 font-bold py-2 rounded-xl transition shadow-md shadow-lime-500/10 text-center text-xs cursor-pointer"
             >
-              Adicionar Exercício
+              Adicionar ao Treino
             </button>
           </form>
 
-          {/* Quick-Added Workouts List (Rule #4 protection) */}
-          {workouts.length > 0 && (
-            <div className="space-y-2 border-t border-slate-850 pt-3">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios Recentes:</span>
-              <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-                {workouts.map((exercise) => (
+          {/* Draft exercises and saving standard workouts */}
+          {tempExercises.length > 0 && (
+            <div className="space-y-3 border-t border-slate-850 pt-3">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios no Rascunho:</span>
+              <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                {tempExercises.map((exercise) => (
                   <div
                     key={exercise.id}
-                    className="bg-slate-950 border border-slate-850/60 p-2.5 rounded-xl flex items-center justify-between text-xs"
+                    className="bg-slate-950 border border-slate-850/60 p-2 rounded-xl flex items-center justify-between text-xs"
                   >
                     <div className="truncate">
                       <span className="font-bold text-slate-200 block truncate text-[11px]">
@@ -585,7 +600,7 @@ export default function ExerciseProgression({
 
                     <button
                       type="button"
-                      onClick={() => setWorkouts(prev => prev.filter(w => w.id !== exercise.id))}
+                      onClick={() => setTempExercises(prev => prev.filter(w => w.id !== exercise.id))}
                       className="text-slate-500 hover:text-red-400 p-1 flex-shrink-0 cursor-pointer"
                       title="Excluir"
                     >
@@ -594,9 +609,66 @@ export default function ExerciseProgression({
                   </div>
                 ))}
               </div>
+
+              {/* Form to save standard workout template */}
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-850/60 space-y-2 mt-2">
+                <label htmlFor="temp-workout-name-input" className="text-[10px] text-slate-400 font-bold uppercase block">Nome do Treino Padronizado</label>
+                <input
+                  id="temp-workout-name-input"
+                  type="text"
+                  placeholder="Ex: Treino A - Superior"
+                  value={workoutName}
+                  onChange={(e) => setWorkoutName(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-lime-500"
+                />
+                <button
+                  id="btn-save-temp-workout"
+                  type="button"
+                  onClick={handleSaveStandardWorkout}
+                  disabled={!workoutName.trim()}
+                  className="w-full py-1 text-slate-950 bg-lime-400 hover:bg-lime-500 disabled:opacity-50 disabled:hover:bg-lime-400 rounded-lg font-bold text-[10px] uppercase tracking-wide transition cursor-pointer"
+                >
+                  Salvar Treino Completo (Firestore)
+                </button>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Saved standardized workouts directly fetched from Firestore */}
+        {standardWorkouts.length > 0 && (
+          <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 mt-4 space-y-3">
+            <div className="flex items-center gap-1.5 border-b border-slate-850 pb-2">
+              <span className="text-lime-400 text-xs font-mono font-bold">✓</span>
+              <h4 className="font-bold text-white text-xs uppercase tracking-wide">Treinos Padronizados (Firestore)</h4>
+            </div>
+            <div className="space-y-3.5 max-h-56 overflow-y-auto pr-1">
+              {standardWorkouts.map((workout) => (
+                <div key={workout.id} className="bg-slate-950 border border-slate-850/70 p-3 rounded-xl space-y-2 hover:border-slate-800 transition">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-lime-400 text-xs truncate">{workout.name}</span>
+                    <button
+                      id={`btn-delete-standard-workout-${workout.id}`}
+                      onClick={() => onDeleteStandardWorkout && onDeleteStandardWorkout(workout.id)}
+                      className="text-slate-500 hover:text-red-400 p-0.5 transition cursor-pointer"
+                      title="Excluir treino"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {workout.exercises.map((ex, idx) => (
+                      <div key={ex.id} className="text-[10px] text-slate-450 flex justify-between gap-1 items-center">
+                        <span className="truncate">{idx + 1}. {ex.name || "Sem nome"}</span>
+                        <span className="font-mono text-slate-500 shrink-0 font-semibold">{ex.sets}s × {ex.reps} | {ex.weight}kg | {ex.rest}s</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Exercise statistics Details & progression charts (7 cols) */}

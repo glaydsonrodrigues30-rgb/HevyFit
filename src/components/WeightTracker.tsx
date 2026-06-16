@@ -4,12 +4,13 @@
  */
 
 import React, { useState } from 'react';
-import { Scale, Plus, Calendar, Trash2, TrendingDown, RefreshCw } from 'lucide-react';
+import { Scale, Plus, Calendar, Trash2, TrendingDown, RefreshCw, Edit2, X } from 'lucide-react';
 import { WeightEntry } from '../types';
 
 interface WeightTrackerProps {
   weightHistory: WeightEntry[];
-  onAddWeight: (weight: number, note: string) => void;
+  onAddWeight: (weight: number, note: string, timestamp?: number) => void;
+  onUpdateWeight: (id: string, weight: number, note: string, timestamp: number) => void;
   onDeleteWeight: (id: string) => void;
   goalWeight: number | null | undefined;
 }
@@ -17,21 +18,64 @@ interface WeightTrackerProps {
 export default function WeightTracker({
   weightHistory,
   onAddWeight,
+  onUpdateWeight,
   onDeleteWeight,
   goalWeight
 }: WeightTrackerProps) {
+  const getTodayString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const timestampToDateString = (ts: number) => {
+    const d = new Date(ts);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [newWeight, setNewWeight] = useState('');
   const [note, setNote] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [customDate, setCustomDate] = useState(getTodayString());
+
+  // Edit logic states
+  const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
+  const [editWeight, setEditWeight] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editDate, setEditDate] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const weightVal = parseFloat(newWeight);
     if (!isNaN(weightVal) && weightVal > 0) {
-      onAddWeight(weightVal, note);
+      const parsedDate = new Date(customDate + 'T12:00:00');
+      onAddWeight(weightVal, note, parsedDate.getTime());
       setNewWeight('');
       setNote('');
-      setShowAddForm(false);
+      setCustomDate(getTodayString());
+    }
+  };
+
+  const handleEditClick = (entry: WeightEntry) => {
+    setEditingEntry(entry);
+    setEditWeight(entry.weight.toString());
+    setEditNote(entry.note || '');
+    setEditDate(timestampToDateString(entry.timestamp));
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    const weightVal = parseFloat(editWeight);
+    if (!isNaN(weightVal) && weightVal > 0 && editDate) {
+      const parsedDate = new Date(editDate + 'T12:00:00');
+      onUpdateWeight(editingEntry.id, weightVal, editNote, parsedDate.getTime());
+      setEditingEntry(null);
     }
   };
 
@@ -250,6 +294,18 @@ export default function WeightTracker({
               />
             </div>
 
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Data de Registro</label>
+              <input
+                id="log-input-weight-date"
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
+                required
+              />
+            </div>
+
             <button
               id="btn-save-weight-tracker"
               type="submit"
@@ -336,6 +392,15 @@ export default function WeightTracker({
                     </div>
 
                     <button
+                      id={`btn-edit-weight-${entry.id}`}
+                      onClick={() => handleEditClick(entry)}
+                      className="text-slate-600 hover:text-amber-400 p-1.5 hover:bg-slate-900 rounded transition"
+                      title="Editar medição"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
                       id={`btn-delete-weight-${entry.id}`}
                       onClick={() => onDeleteWeight(entry.id)}
                       className="text-slate-600 hover:text-red-400 p-1.5 hover:bg-slate-900 rounded transition"
@@ -351,6 +416,90 @@ export default function WeightTracker({
         </div>
 
       </div>
+
+      {editingEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+          <div
+            id="edit-weight-modal"
+            className="bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-white space-y-4 font-sans animate-none"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-white text-base">Editar Registro de Peso</h3>
+              </div>
+              <button
+                id="btn-close-edit-weight"
+                onClick={() => setEditingEntry(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition animate-none"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Medição de Peso (kg)</label>
+                <div className="relative">
+                  <input
+                    id="edit-input-weight"
+                    type="number"
+                    step="0.1"
+                    min="30"
+                    max="250"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
+                    required
+                  />
+                  <span className="absolute right-3 top-2 text-xs text-slate-500 font-mono">kg</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Nota ou Contexto (opcional)</label>
+                <input
+                  id="edit-input-weight-note"
+                  type="text"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Data de Registro</label>
+                <input
+                  id="edit-input-weight-date"
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-slate-850">
+                <button
+                  id="btn-cancel-edit-weight"
+                  type="button"
+                  onClick={() => setEditingEntry(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 hover:text-white transition font-semibold text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  id="btn-submit-edit-weight"
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 font-bold text-white transition text-center"
+                >
+                  Confirmar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

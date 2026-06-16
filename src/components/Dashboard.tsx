@@ -290,7 +290,7 @@ export default function Dashboard({
               </div>
               <button
                 id="btn-navigate-cycle"
-                onClick={() => onNavigate('ciclo')}
+                onClick={() => onNavigate('cycle')}
                 className="text-xs text-lime-400 hover:underline flex items-center gap-0.5"
               >
                 <span>Configurar Ciclo</span>
@@ -346,7 +346,7 @@ export default function Dashboard({
                 </p>
                 <button
                   id="dashboard-btn-create-cycle"
-                  onClick={() => onNavigate('ciclo')}
+                  onClick={() => onNavigate('cycle')}
                   className="px-4 py-2 text-xs font-semibold text-slate-950 bg-lime-500 hover:bg-lime-600 rounded-lg transition"
                 >
                   Criar Primeiro Ciclo
@@ -361,7 +361,7 @@ export default function Dashboard({
               <h3 className="font-semibold text-white text-base">Atividades Recentes</h3>
               <button
                 id="btn-navigate-history"
-                onClick={() => onNavigate('historico')}
+                onClick={() => onNavigate('history')}
                 className="text-xs text-lime-400 hover:underline flex items-center gap-0.5"
               >
                 <span>Ver Todos</span>
@@ -507,7 +507,7 @@ export default function Dashboard({
             
             <button
                id="dashboard-btn-navigate-weight"
-               onClick={() => onNavigate('peso')}
+               onClick={() => onNavigate('weight')}
                className="w-full text-center text-xs text-rose-400 hover:underline pt-1 block"
             >
               Ver diário completo de peso →

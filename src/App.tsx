@@ -20,9 +20,11 @@ import {
   Menu,
   X,
   Sparkles,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
-import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine } from './types';
+import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise } from './types';
+import { TEXTS } from './texts';
 import {
   INITIAL_EXERCISES,
   INITIAL_ROUTINES,
@@ -37,6 +39,7 @@ import WeightTracker from './components/WeightTracker';
 import CycleSettings from './components/CycleSettings';
 import RestTimerOverlay from './components/RestTimerOverlay';
 import Login from './components/Login';
+import AdminView from './components/AdminView';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, logOut, db } from './lib/firebase';
 import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
@@ -47,14 +50,93 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
-  // Navigation
-  const [activeTab, setActiveTab] = useState ('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   // Auth and Guest States
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+
+  // Navigation with URL pathname/hash synchronization
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
+    const hash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+    const validTabs = [
+      'dashboard',
+      'train',
+      'history',
+      'exercises',
+      'weight',
+      'cycle',
+      'admin'
+    ];
+    if (validTabs.includes(path)) {
+      return path;
+    }
+    if (hash && validTabs.includes(hash)) {
+      return hash;
+    }
+    return 'dashboard';
+  });
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sync activeTab with URL & perform admin security validation
+  useEffect(() => {
+    const validTabs = [
+      'dashboard',
+      'train',
+      'history',
+      'exercises',
+      'weight',
+      'cycle',
+      'admin'
+    ];
+
+    // Auth security guard for admin panel
+    if (!authLoading) {
+      const isAdminAccount = currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com';
+      if (activeTab === 'admin' && !isAdminAccount) {
+        setActiveTab('dashboard');
+        return;
+      }
+    }
+
+    if (validTabs.includes(activeTab)) {
+      const path = activeTab === 'dashboard' ? '/' : `/${activeTab}`;
+      if (window.location.pathname !== path) {
+        window.history.pushState({ tab: activeTab }, '', path);
+      }
+    }
+  }, [activeTab, currentUser, authLoading]);
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
+      const hash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+      const validTabs = [
+        'dashboard',
+        'train',
+        'history',
+        'exercises',
+        'weight',
+        'cycle',
+        'admin'
+      ];
+      if (validTabs.includes(path)) {
+        setActiveTab(path);
+      } else if (hash && validTabs.includes(hash)) {
+        setActiveTab(hash);
+      } else {
+        setActiveTab('dashboard');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
 
   // Persistence States
   const [history, setHistory] = useState<WorkoutHistory[]>([]);
@@ -63,6 +145,7 @@ export default function App() {
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
+  const [standardWorkouts, setStandardWorkouts] = useState<StandardWorkout[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Delete confirm state for workouts history
@@ -120,11 +203,27 @@ export default function App() {
             if (data.activeWorkout !== undefined) {
               setActiveWorkout(data.activeWorkout);
             }
+            if (data.standardWorkouts !== undefined) {
+              setStandardWorkouts(data.standardWorkouts);
+            }
+
+            // Always update basic info to keep admin user list current
+            await setDoc(userDocRef, {
+              displayName: user.displayName || 'Sem nome',
+              email: user.email || '',
+              photoURL: user.photoURL || '',
+              lastSeen: new Date().toISOString()
+            }, { merge: true });
+
           } else {
             // First time login - initialize with initial templates
             const initialUserData = {
               userId: user.uid,
+              displayName: user.displayName || 'Sem nome',
+              email: user.email || '',
+              photoURL: user.photoURL || '',
               createdAt: new Date().toISOString(),
+              lastSeen: new Date().toISOString(),
               workouts: INITIAL_HISTORY,
               history: INITIAL_HISTORY,
               routines: INITIAL_ROUTINES,
@@ -140,7 +239,8 @@ export default function App() {
                 goalWeight: 78.5
               },
               exercises: INITIAL_EXERCISES,
-              activeWorkout: null
+              activeWorkout: null,
+              standardWorkouts: []
             };
 
             await setDoc(userDocRef, initialUserData);
@@ -152,6 +252,7 @@ export default function App() {
             setCurrentCycle(initialUserData.currentCycle);
             setExercises(INITIAL_EXERCISES);
             setActiveWorkout(null);
+            setStandardWorkouts([]);
           }
         } catch (error) {
           console.error('Error during initial Firebase load:', error);
@@ -227,6 +328,10 @@ export default function App() {
 
         if (data.activeWorkout !== undefined) {
           setActiveWorkout(data.activeWorkout as ActiveWorkout | null);
+        }
+
+        if (data.standardWorkouts !== undefined) {
+          setStandardWorkouts(data.standardWorkouts as StandardWorkout[]);
         }
       }
     }, (error) => {
@@ -405,11 +510,11 @@ export default function App() {
   };
 
   // Weight entry manipulations
-  const handleAddWeight = async (weight: number, note: string) => {
+  const handleAddWeight = async (weight: number, note: string, customTimestamp?: number) => {
     const entry: WeightEntry = {
       id: 'weight_' + Date.now(),
       weight,
-      timestamp: Date.now(),
+      timestamp: customTimestamp || Date.now(),
       note: note || undefined
     };
     const updated = [...weightHistory, entry];
@@ -423,6 +528,32 @@ export default function App() {
         }, { merge: true });
       } catch (error) {
         console.error('Error saving weight history to Firebase:', error);
+      }
+    }
+  };
+
+  const handleUpdateWeight = async (id: string, weight: number, note: string, timestamp: number) => {
+    const updated = weightHistory.map(w => {
+      if (w.id === id) {
+        return {
+          ...w,
+          weight,
+          timestamp,
+          note: note || undefined
+        };
+      }
+      return w;
+    });
+    setWeightHistory(updated);
+
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          weightHistory: updated,
+          weights: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error updating weight in Firebase:', error);
       }
     }
   };
@@ -482,6 +613,34 @@ export default function App() {
         }, { merge: true });
       } catch (error) {
         console.error('Error deleting custom exercise in Firebase:', error);
+      }
+    }
+  };
+
+  const handleAddStandardWorkout = async (newWorkout: StandardWorkout) => {
+    const updated = [...standardWorkouts, newWorkout];
+    setStandardWorkouts(updated);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          standardWorkouts: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error saving standardized workout to Firebase:', error);
+      }
+    }
+  };
+
+  const handleDeleteStandardWorkout = async (id: string) => {
+    const updated = standardWorkouts.filter(w => w.id !== id);
+    setStandardWorkouts(updated);
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          standardWorkouts: updated
+        }, { merge: true });
+      } catch (error) {
+        console.error('Error deleting standardized workout in Firebase:', error);
       }
     }
   };
@@ -565,10 +724,10 @@ export default function App() {
         </div>
 
         {/* Global Workout status info pill */}
-        {activeWorkout && activeTab !== 'treinar' && (
+        {activeWorkout && activeTab !== 'train' && (
           <button
             id="global-active-workout-header-pill"
-            onClick={() => setActiveTab('treinar')}
+            onClick={() => setActiveTab('train')}
             className="flex items-center gap-2 bg-lime-500/10 border border-lime-500/20 px-3 py-1.5 rounded-full hover:bg-lime-500/15 transition animate-pulse duration-1000 select-none cursor-pointer"
           >
             <Clock className="w-3.5 h-3.5 text-lime-400" />
@@ -579,12 +738,15 @@ export default function App() {
         {/* Desktop inline Menu navigation triggers */}
         <nav className="hidden md:flex items-center gap-1">
           {[
-            { id: 'dashboard', label: 'Dashboard', icon: Activity },
-            { id: 'treinar', label: 'Treinar', icon: Dumbbell },
-            { id: 'historico', label: 'Histórico', icon: History },
-            { id: 'exercicios', label: 'Exercícios', icon: TrendingUp },
-            { id: 'peso', label: 'Peso Corporal', icon: Scale },
-            { id: 'ciclo', label: 'Ciclo', icon: Calendar }
+            { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
+            { id: 'train', label: TEXTS.train, icon: Dumbbell },
+            { id: 'history', label: TEXTS.history, icon: History },
+            { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
+            { id: 'weight', label: TEXTS.weight, icon: Scale },
+            { id: 'cycle', label: TEXTS.cycle, icon: Calendar },
+            ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
+              ? [{ id: 'admin', label: TEXTS.admin || 'Admin', icon: Lock }]
+              : [])
           ].map((tab) => {
             const Icon = tab.icon;
             const isTabActive = activeTab === tab.id;
@@ -669,12 +831,15 @@ export default function App() {
           >
             <div className="px-4 py-3 space-y-2">
               {[
-                { id: 'dashboard', label: 'Dashboard', icon: Activity },
-                { id: 'treinar', label: 'Treinar', icon: Dumbbell },
-                { id: 'historico', label: 'Histórico', icon: History },
-                { id: 'exercicios', label: 'Exercícios', icon: TrendingUp },
-                { id: 'peso', label: 'Peso Corporal', icon: Scale },
-                { id: 'ciclo', label: 'Ciclo', icon: Calendar }
+                { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
+                { id: 'train', label: TEXTS.train, icon: Dumbbell },
+                { id: 'history', label: TEXTS.history, icon: History },
+                { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
+                { id: 'weight', label: TEXTS.weight, icon: Scale },
+                { id: 'cycle', label: TEXTS.cycle, icon: Calendar },
+                ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
+                  ? [{ id: 'admin', label: TEXTS.admin || 'Admin', icon: Lock }]
+                  : [])
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isTabActive = activeTab === tab.id;
@@ -768,7 +933,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'treinar' && (
+        {activeTab === 'train' && (
           <WorkoutLog
             activeWorkout={activeWorkout}
             history={history}
@@ -834,7 +999,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'historico' && (
+        {activeTab === 'history' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -981,26 +1146,30 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'exercicios' && (
+        {activeTab === 'exercises' && (
           <ExerciseProgression
             history={history}
             availableExercises={exercises}
             onAddExercise={handleAddExercise}
             onUpdateExercise={handleUpdateExercise}
             onDeleteExercise={handleDeleteExercise}
+            standardWorkouts={standardWorkouts}
+            onAddStandardWorkout={handleAddStandardWorkout}
+            onDeleteStandardWorkout={handleDeleteStandardWorkout}
           />
         )}
 
-        {activeTab === 'peso' && (
+        {activeTab === 'weight' && (
           <WeightTracker
             weightHistory={weightHistory}
             onAddWeight={handleAddWeight}
+            onUpdateWeight={handleUpdateWeight}
             onDeleteWeight={handleDeleteWeight}
             goalWeight={currentCycle?.goalWeight}
           />
         )}
 
-        {activeTab === 'ciclo' && (
+        {activeTab === 'cycle' && (
           <CycleSettings
             currentCycle={currentCycle}
             onSaveCycle={async (cycle) => {
@@ -1027,6 +1196,13 @@ export default function App() {
                 }
               }
             }}
+          />
+        )}
+
+        {activeTab === 'admin' && currentUser?.email === 'glaydson.rodrigues30@gmail.com' && (
+          <AdminView
+            currentUser={currentUser}
+            availableExercises={exercises}
           />
         )}
 
