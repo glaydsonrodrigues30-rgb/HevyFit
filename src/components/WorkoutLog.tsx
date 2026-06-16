@@ -4,10 +4,20 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Play, Clipboard, Dumbbell, Trash2, Plus, Check, Undo, Search, Filter, X, ChevronDown, Award, Edit } from 'lucide-react';
+import { Play, Clipboard, Dumbbell, Trash2, Plus, Check, Undo, Search, Filter, X, ChevronDown, Award, Edit, Printer } from 'lucide-react';
 import { ActiveWorkout, Exercise, ExerciseWorkoutState, SetState, SetType, WorkoutHistory, WorkoutRoutine } from '../types';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
 import { motion, AnimatePresence } from 'motion/react';
+
+export const DAYS_OF_WEEK_LABELS: Record<number, string> = {
+  1: 'Segunda-feira',
+  2: 'Terça-feira',
+  3: 'Quarta-feira',
+  4: 'Quinta-feira',
+  5: 'Sexta-feira',
+  6: 'Sábado',
+  0: 'Domingo',
+};
 
 interface WorkoutLogProps {
   activeWorkout: ActiveWorkout | null;
@@ -58,6 +68,7 @@ export default function WorkoutLog({
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null);
   const [routineFormName, setRoutineFormName] = useState('');
   const [routineFormDescription, setRoutineFormDescription] = useState('');
+  const [routineFormDayOfWeek, setRoutineFormDayOfWeek] = useState<number | null>(null);
   const [routineFormExercises, setRoutineFormExercises] = useState<WorkoutRoutine['exercises']>([]);
 
   // Sub-modal to select exercise inside routine creator
@@ -73,6 +84,9 @@ export default function WorkoutLog({
 
   // Routine Delete State
   const [deletingRoutineId, setDeletingRoutineId] = useState<string | null>(null);
+
+  // Print Modal State
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Exercise Rename States
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
@@ -160,6 +174,7 @@ export default function WorkoutLog({
     setEditingRoutine(null);
     setRoutineFormName('');
     setRoutineFormDescription('');
+    setRoutineFormDayOfWeek(null);
     setRoutineFormExercises([]);
     setShowRoutineFormModal(true);
   };
@@ -168,6 +183,7 @@ export default function WorkoutLog({
     setEditingRoutine(routine);
     setRoutineFormName(routine.name);
     setRoutineFormDescription(routine.description);
+    setRoutineFormDayOfWeek(routine.dayOfWeek !== undefined ? routine.dayOfWeek : null);
     setRoutineFormExercises(JSON.parse(JSON.stringify(routine.exercises))); // Deep clone
     setShowRoutineFormModal(true);
   };
@@ -274,6 +290,7 @@ export default function WorkoutLog({
         ...editingRoutine,
         name: routineFormName.trim(),
         description: routineFormDescription.trim(),
+        dayOfWeek: routineFormDayOfWeek,
         exercises: routineFormExercises
       };
       onUpdateRoutine?.(updated);
@@ -282,6 +299,7 @@ export default function WorkoutLog({
         id: 'routine_' + Date.now(),
         name: routineFormName.trim(),
         description: routineFormDescription.trim(),
+        dayOfWeek: routineFormDayOfWeek,
         exercises: routineFormExercises
       };
       onAddRoutine?.(newRoutine);
@@ -566,11 +584,19 @@ export default function WorkoutLog({
                 <h2 className="text-xl font-bold text-white tracking-tight">Começar Treino</h2>
                 <p className="text-xs text-slate-400">Selecione uma de suas rotinas abaixo ou inicie um treino personalizado vazio.</p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  id="btn-print-weekly-sheet"
+                  onClick={() => setShowPrintModal(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-sky-400 font-bold font-sans text-sm transition active:scale-95 shrink-0"
+                >
+                  <Printer className="w-4 h-4 shrink-0" />
+                  <span>Imprimir Ficha</span>
+                </button>
                 <button
                   id="btn-create-routine"
                   onClick={handleCreateRoutineTrigger}
-                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-lime-400 font-bold font-sans text-sm transition active:scale-95 shrink-0"
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-lime-400 font-bold font-sans text-sm transition active:scale-95 shrink-0"
                 >
                   <Plus className="w-4 h-4 shrink-0 stroke-[2.5]" />
                   <span>Nova Rotina</span>
@@ -578,7 +604,7 @@ export default function WorkoutLog({
                 <button
                   id="btn-start-custom-workout"
                   onClick={handleCreateEmptyWorkout}
-                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-600 hover:to-emerald-600 font-bold text-slate-950 font-sans text-sm shadow-md transition active:scale-95 shrink-0"
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-600 hover:to-emerald-600 font-bold text-slate-950 font-sans text-sm shadow-md transition active:scale-95 shrink-0"
                 >
                   <Plus className="w-4 h-4 shrink-0 stroke-[3px]" />
                   <span>Iniciar Treino Vazio</span>
@@ -663,6 +689,14 @@ export default function WorkoutLog({
                           </div>
                         </div>
                         <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{routine.description}</p>
+                        {routine.dayOfWeek !== undefined && routine.dayOfWeek !== null && (
+                          <div className="flex items-center gap-1.5 mt-2 bg-lime-500/10 border border-lime-500/20 px-2.5 py-1 rounded-xl w-fit">
+                            <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-pulse"></span>
+                            <span className="text-[10px] text-lime-400 font-bold uppercase tracking-wider font-mono">
+                              {DAYS_OF_WEEK_LABELS[routine.dayOfWeek]}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Exercises Mini List */}
@@ -1323,8 +1357,8 @@ export default function WorkoutLog({
 
               {/* Scrollable Form Body */}
               <form onSubmit={handleSaveRoutine} className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
-                {/* Name & description */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Nome, descrição e Dia da Semana */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-[11px] text-slate-400 font-bold block uppercase">Nome da Rotina</label>
                     <input
@@ -1347,6 +1381,27 @@ export default function WorkoutLog({
                       placeholder="Ex: Foco nos exercícios básicos com progressão"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 placeholder-slate-550 outline-none focus:border-lime-500 text-xs"
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-slate-400 font-bold block uppercase">Dia da Semana (Agendar)</label>
+                    <select
+                      id="routine-form-day"
+                      value={routineFormDayOfWeek === null ? "" : routineFormDayOfWeek}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRoutineFormDayOfWeek(val === "" ? null : Number(val));
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 placeholder-slate-550 outline-none focus:border-lime-500 text-xs font-semibold"
+                    >
+                      <option value="">Sem dia específico</option>
+                      <option value="1">Segunda-feira</option>
+                      <option value="2">Terça-feira</option>
+                      <option value="3">Quarta-feira</option>
+                      <option value="4">Quinta-feira</option>
+                      <option value="5">Sexta-feira</option>
+                      <option value="6">Sábado</option>
+                      <option value="0">Domingo</option>
+                    </select>
                   </div>
                 </div>
 
@@ -1814,6 +1869,338 @@ export default function WorkoutLog({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE VISUALIZAÇÃO E IMPRESSÃO DA FICHA SEMANAL */}
+      <AnimatePresence>
+        {showPrintModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md overflow-y-auto">
+            {/* Dynamic CSS styles for clean printing with absolute print containment */}
+            <style dangerouslySetInnerHTML={{__html: `
+              @media print {
+                body {
+                  background: white !important;
+                  color: black !important;
+                }
+                body * {
+                  visibility: hidden !important;
+                }
+                #print-area, #print-area * {
+                  visibility: visible !important;
+                }
+                #print-area {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  margin: 0 !important;
+                  padding: 1.5cm !important;
+                  background: white !important;
+                  color: black !important;
+                }
+                /* Hide print overlay buttons during printing */
+                .no-print {
+                  display: none !important;
+                }
+              }
+            `}} />
+
+            <motion.div
+              id="print-preview-modal"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[92vh] text-white"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-850 p-5 bg-slate-900/80 sticky top-0 z-10 shrink-0 font-sans">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                    <Printer className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base font-sans">Imprimir Ficha Completa</h3>
+                    <p className="text-[11px] text-slate-400">Visualização prévia do gabarito físico para impressão.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    id="btn-trigger-print"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs uppercase tracking-wider font-mono shadow-md transition active:scale-95"
+                  >
+                    <Printer className="w-4 h-4 text-slate-950" />
+                    <span>Imprimir Agora</span>
+                  </button>
+                  <button
+                    id="btn-close-print-modal"
+                    onClick={() => setShowPrintModal(false)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body - Scrollable visual preview */}
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-950/40">
+                <div className="text-center mb-5 no-print">
+                  <span className="text-[11px] bg-slate-900 border border-slate-850 text-slate-300 px-3 py-1.5 rounded-full inline-block font-medium">
+                    💡 <strong>Dica:</strong> Na tela de impressão, ative a opção <strong>"Imprimir cores de fundo" / "Imprimir gráficos de fundo"</strong> para um visual perfeito.
+                  </span>
+                </div>
+
+                {/* VISUAL & PRINT CONTROLLER SHEET (The print area targeted by ID) */}
+                <div
+                  id="print-area"
+                  className="bg-white text-black p-8 rounded-2xl shadow-xl max-w-[210mm] mx-auto font-sans"
+                  style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                >
+                  {/* Sheet Header */}
+                  <div className="border-b-4 border-black pb-4 mb-6 flex justify-between items-start text-left">
+                    <div>
+                      <h1 className="text-2xl font-black tracking-tight text-black flex items-center gap-2 uppercase font-mono">
+                        🏋️‍♂️ Ficha de Treino Semanal
+                      </h1>
+                      <p className="text-[11px] text-slate-700 font-medium">Sistema HevyFit • Acompanhamento Físico do Aluno</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-slate-800 bg-slate-100 border border-slate-300 px-2 py-1 rounded-md uppercase font-mono tracking-wider">
+                        Rotina de Atividades
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Header Form Fields for writing on paper */}
+                  <div className="grid grid-cols-4 gap-4 border border-black/80 rounded-lg p-4 bg-slate-50/50 mb-6 text-left">
+                    <div className="col-span-2">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-700 block text-left">Atleta / Aluno</label>
+                      <div className="border-b border-black text-xs font-semibold h-6 flex items-end text-black uppercase">
+                        ______________________________________________________
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-700 block text-left">Data de Início</label>
+                      <div className="border-b border-black text-xs font-mono h-6 flex items-end">
+                        ____ / ____ / ________
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-700 block text-left">Peso Atual</label>
+                      <div className="border-b border-black text-xs font-mono h-6 flex items-end">
+                        __________ kg
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DETAILED DAYS PLAN LIST */}
+                  <div className="space-y-8">
+                    {[
+                      { key: 1, label: 'Segunda-feira' },
+                      { key: 2, label: 'Terça-feira' },
+                      { key: 3, label: 'Quarta-feira' },
+                      { key: 4, label: 'Quinta-feira' },
+                      { key: 5, label: 'Sexta-feira' },
+                      { key: 6, label: 'Sábado' },
+                      { key: 0, label: 'Domingo' },
+                    ].map((day) => {
+                      const dayRoutines = routines.filter(r => r.dayOfWeek === day.key);
+                      if (dayRoutines.length === 0) return null;
+
+                      return (
+                        <div key={day.key} className="break-inside-avoid space-y-4 text-left">
+                          <h2 className="text-sm font-extrabold uppercase tracking-widest text-[11px] text-white bg-black px-3 py-1.5 rounded-md inline-block font-mono">
+                            📅 {day.label}
+                          </h2>
+                          
+                          {dayRoutines.map((routine) => (
+                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white">
+                              <div className="border-b-2 border-black/10 pb-2 flex justify-between items-start">
+                                <div>
+                                  <h3 className="text-base font-black text-black uppercase">{routine.name}</h3>
+                                  <p className="text-xs text-slate-600 font-medium italic mt-0.5">{routine.description || "Sem descrição"}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-600 font-mono bg-slate-100 border border-slate-300 px-2 py-1 rounded">
+                                  {routine.exercises.length} Exercícios
+                                </span>
+                              </div>
+
+                              <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                  <tr className="border-b-2 border-black text-slate-700">
+                                    <th className="py-2 font-bold w-1/3">Exercício</th>
+                                    <th className="py-2 font-bold w-1/6">Grupo Alvo</th>
+                                    <th className="py-2 font-bold w-1/12 text-center">Séries</th>
+                                    <th className="py-2 font-bold w-1/4">Estrutura de Cargas</th>
+                                    <th className="py-2 font-bold text-center w-1/12">⏱️ Rest</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                  {routine.exercises.map((item, idx) => {
+                                    const exDetails = availableExercises.find(e => e.id === item.exerciseId);
+                                    const warmupSets = item.sets.filter(s => s.type === 'Aquecimento').length;
+                                    const adaptationSets = item.sets.filter(s => s.type === 'Adaptação').length;
+                                    const workSets = item.sets.filter(s => s.type === 'Trabalho').length;
+                                    
+                                    const detailParts = [];
+                                    if (warmupSets > 0) detailParts.push(`${warmupSets}x Aquecimento`);
+                                    if (adaptationSets > 0) detailParts.push(`${adaptationSets}x Adaptação`);
+                                    if (workSets > 0) detailParts.push(`${workSets}x Trabalho`);
+                                    const structureStr = detailParts.join(' / ');
+
+                                    return (
+                                      <tr key={idx} className="border-b border-slate-200">
+                                        <td className="py-3 font-semibold text-black">
+                                          <div>{exDetails?.name || "Exercício"}</div>
+                                          {item.observations && (
+                                            <p className="text-[10px] text-slate-500 font-normal italic">Obs: {item.observations}</p>
+                                          )}
+                                        </td>
+                                        <td className="py-3 text-slate-700">{exDetails?.targetMuscle || "Musculatura"}</td>
+                                        <td className="py-3 text-center font-bold text-black">{item.sets.length}</td>
+                                        <td className="py-3 text-slate-700 font-medium">
+                                          <div>{structureStr}</div>
+                                          <div className="text-[10px] text-slate-500 mt-0.5">
+                                            {item.sets.map((s, sIdx) => (
+                                              <span key={sIdx} className="inline-block mr-2 text-[9px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-bold font-mono">
+                                                S{sIdx+1}: {s.weight ? `${s.weight}kg` : "___kg"} x {s.reps || "___"}r
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </td>
+                                        <td className="py-3 text-center font-mono font-bold text-slate-700 bg-slate-50/50">{item.restTimer || 90}s</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+
+                              <div className="pt-2">
+                                <label className="text-[10px] font-bold text-slate-800 uppercase block tracking-wider mb-2 text-left">
+                                  ✍️ Registro de Treino do Dia (Cargas e Repetições Reais)
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  {routine.exercises.slice(0, 4).map((ex, exIdx) => {
+                                    const exName = availableExercises.find(e => e.id === ex.exerciseId)?.name || 'Exercício';
+                                    return (
+                                      <div key={exIdx} className="border border-slate-300 rounded p-1.5 bg-slate-50/30 text-[10px]">
+                                        <span className="font-bold block truncate text-slate-800">{exName}</span>
+                                        <div className="space-y-1 mt-1 font-mono text-[9px] text-slate-500">
+                                          {ex.sets.map((_, sIdx) => (
+                                            <div key={sIdx} className="flex justify-between items-center">
+                                              <span>Série {sIdx+1}:</span>
+                                              <span>_______ kg x _______ reps</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+
+                    {/* OTHER UNLINKED ROUTINES */}
+                    {(() => {
+                      const unlinkedRoutines = routines.filter(r => r.dayOfWeek === null || r.dayOfWeek === undefined);
+                      if (unlinkedRoutines.length === 0) return null;
+
+                      return (
+                        <div className="break-inside-avoid space-y-4 text-left">
+                          <h2 className="text-sm font-extrabold uppercase tracking-widest text-[11px] text-slate-800 bg-slate-200 px-3 py-1.5 rounded-md inline-block font-mono">
+                            🔄 Outras Rotinas (Sem dia fixo)
+                          </h2>
+
+                          {unlinkedRoutines.map((routine) => (
+                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white">
+                              <div className="border-b-2 border-black/10 pb-2 flex justify-between items-start">
+                                <div>
+                                  <h3 className="text-base font-black text-black uppercase">{routine.name}</h3>
+                                  <p className="text-xs text-slate-600 font-medium italic mt-0.5">{routine.description || "Sem descrição"}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-600 font-mono bg-slate-100 border border-slate-300 px-2 py-1 rounded">
+                                  {routine.exercises.length} Exercícios
+                                </span>
+                              </div>
+
+                              <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                  <tr className="border-b-2 border-black text-slate-700">
+                                    <th className="py-2 font-bold w-1/3">Exercício</th>
+                                    <th className="py-2 font-bold w-1/6">Grupo Alvo</th>
+                                    <th className="py-2 font-bold w-1/12 text-center">Séries</th>
+                                    <th className="py-2 font-bold w-1/4">Estrutura de Cargas</th>
+                                    <th className="py-2 font-bold text-center w-1/12">⏱️ Rest</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                  {routine.exercises.map((item, idx) => {
+                                    const exDetails = availableExercises.find(e => e.id === item.exerciseId);
+                                    const warmupSets = item.sets.filter(s => s.type === 'Aquecimento').length;
+                                    const adaptationSets = item.sets.filter(s => s.type === 'Adaptação').length;
+                                    const workSets = item.sets.filter(s => s.type === 'Trabalho').length;
+                                    
+                                    const detailParts = [];
+                                    if (warmupSets > 0) detailParts.push(`${warmupSets}x Aquecimento`);
+                                    if (adaptationSets > 0) detailParts.push(`${adaptationSets}x Adaptação`);
+                                    if (workSets > 0) detailParts.push(`${workSets}x Trabalho`);
+                                    const structureStr = detailParts.join(' / ');
+
+                                    return (
+                                      <tr key={idx} className="border-b border-slate-200">
+                                        <td className="py-3 font-semibold text-black">
+                                          <div>{exDetails?.name || "Exercício"}</div>
+                                          {item.observations && (
+                                            <p className="text-[10px] text-slate-500 font-normal italic">Obs: {item.observations}</p>
+                                          )}
+                                        </td>
+                                        <td className="py-3 text-slate-700">{exDetails?.targetMuscle || "Musculatura"}</td>
+                                        <td className="py-3 text-center font-bold text-black">{item.sets.length}</td>
+                                        <td className="py-3 text-slate-700 font-medium">
+                                          <div>{structureStr}</div>
+                                          <div className="text-[10px] text-slate-500 mt-0.5">
+                                            {item.sets.map((s, sIdx) => (
+                                              <span key={sIdx} className="inline-block mr-2 text-[9px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-bold font-mono">
+                                                S{sIdx+1}: {s.weight ? `${s.weight}kg` : "___kg"} x {s.reps || "___"}r
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </td>
+                                        <td className="py-3 text-center font-mono font-bold text-slate-700 bg-slate-50/50">{item.restTimer || 90}s</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* General observations area */}
+                  <div className="border-t-2 border-black mt-8 pt-4 text-left">
+                    <label className="text-[10px] font-bold text-black uppercase tracking-wider block mb-2 text-left">Anotações Gerais & Observações da Semana</label>
+                    <div className="border border-slate-300 rounded-lg h-24 bg-slate-50/10 p-3 text-slate-500 text-xs">
+                      Escreva aqui suas impressões gerais, dores físicas, necessidade de alteração de cargas ou metas alcançadas na semana...
+                    </div>
+                  </div>
+
+                  <div className="mt-6 text-center text-[9px] text-slate-500 border-t border-slate-200 pt-2 font-mono flex justify-between">
+                    <span>Ficha gerada em {new Date().toLocaleDateString('pt-BR')}</span>
+                    <span>Progresso estilo HevyFit</span>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

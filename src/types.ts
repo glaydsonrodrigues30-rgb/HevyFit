@@ -70,6 +70,7 @@ export interface WorkoutRoutine {
   id: string;
   name: string;
   description: string;
+  dayOfWeek?: number | null;
   exercises: {
     exerciseId: string;
     sets: {
