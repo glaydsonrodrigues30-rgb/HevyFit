@@ -21,7 +21,8 @@ import {
   X,
   Sparkles,
   Info,
-  Lock
+  Lock,
+  Edit
 } from 'lucide-react';
 import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise } from './types';
 import { TEXTS } from './texts';
@@ -150,6 +151,13 @@ export default function App() {
 
   // Delete confirm state for workouts history
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+
+  // Edit states for workouts history
+  const [editingWorkout, setEditingWorkout] = useState<WorkoutHistory | null>(null);
+  const [editWorkoutName, setEditWorkoutName] = useState('');
+  const [editWorkoutDateStr, setEditWorkoutDateStr] = useState('');
+  const [editWorkoutDurationMins, setEditWorkoutDurationMins] = useState(0);
+  const [editWorkoutComments, setEditWorkoutComments] = useState('');
 
   // Rest Timer States - managed globally to stay active while exploring other tabs
   const [timerTotal, setTimerTotal] = useState(90);
@@ -483,6 +491,68 @@ export default function App() {
 
     // Navigate to history logs
     setActiveTab('historico');
+  };
+
+  // Workout History Edition Handlers
+  const handleStartEditWorkout = (workout: WorkoutHistory) => {
+    setEditingWorkout(workout);
+    setEditWorkoutName(workout.name);
+    
+    // Convert startTime to YYYY-MM-DDTHH:mm in local time representation
+    const date = new Date(workout.startTime);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    setEditWorkoutDateStr(`${year}-${month}-${day}T${hours}:${minutes}`);
+    
+    setEditWorkoutDurationMins(Math.round(workout.durationMs / 60000));
+    setEditWorkoutComments(workout.comments || '');
+  };
+
+  const handleSaveEditWorkout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWorkout) return;
+
+    const newStartTime = new Date(editWorkoutDateStr).getTime();
+    if (isNaN(newStartTime)) {
+      alert('Por favor, informe uma data e hora válidas.');
+      return;
+    }
+
+    const newDurationMs = editWorkoutDurationMins * 60000;
+    const newEndTime = newStartTime + newDurationMs;
+
+    const updatedHistory = history.map((w) => {
+      if (w.id === editingWorkout.id) {
+        return {
+          ...w,
+          name: editWorkoutName.trim() || w.name,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          durationMs: newDurationMs,
+          comments: editWorkoutComments.trim()
+        };
+      }
+      return w;
+    });
+
+    setHistory(updatedHistory);
+
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          workouts: updatedHistory,
+          history: updatedHistory
+        }, { merge: true });
+        console.log("Firebase: Edição de histórico salva com sucesso!");
+      } catch (error) {
+        console.error('Error saving edited workout in Firebase:', error);
+      }
+    }
+
+    setEditingWorkout(null);
   };
 
   // Rest Timer Controller functions
@@ -1091,8 +1161,21 @@ export default function App() {
                         })}
                       </div>
 
-                      {/* Historical delete */}
-                      <div className="flex justify-end pt-3 mt-2 border-t border-slate-850/30">
+                      {/* Historical delete and edit */}
+                      <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-850/30">
+                        <div>
+                          {deletingWorkoutId !== workout.id && (
+                            <button
+                              id={`btn-edit-history-${workout.id}`}
+                              onClick={() => handleStartEditWorkout(workout)}
+                              className="flex items-center gap-1.5 text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Editar Treino / Data</span>
+                            </button>
+                          )}
+                        </div>
+
                         {deletingWorkoutId === workout.id ? (
                           <div className="flex items-center gap-2.5">
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
@@ -1275,6 +1358,117 @@ export default function App() {
               >
                 Concluir e Voltar ao Diário
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL PARA EDITAR TREINO DO HISTÓRICO (INCLUINDO ALTERAR A DATA RETROATIVA) */}
+      <AnimatePresence>
+        {editingWorkout && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              id="edit-workout-modal"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-850 rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-4 border-b border-slate-850 pb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-lime-400" />
+                  <h3 className="font-bold text-white text-base font-sans">Editar Sessão de Treino</h3>
+                </div>
+                <button
+                  id="btn-close-edit-modal"
+                  onClick={() => setEditingWorkout(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                  type="button"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditWorkout} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                    Nome do Treino
+                  </label>
+                  <input
+                    id="edit-workout-name"
+                    type="text"
+                    value={editWorkoutName}
+                    onChange={(e) => setEditWorkoutName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-sans"
+                    placeholder="Nome do Treino"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                    Data e Hora do Treino (Alterar Data)
+                  </label>
+                  <input
+                    id="edit-workout-date"
+                    type="datetime-local"
+                    value={editWorkoutDateStr}
+                    onChange={(e) => setEditWorkoutDateStr(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-mono"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                    Ajuste este campo para alterar a data deste treino para o passado (registro retroativo).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                    Duração em Minutos (⏱️)
+                  </label>
+                  <input
+                    id="edit-workout-duration"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    value={editWorkoutDurationMins}
+                    onChange={(e) => setEditWorkoutDurationMins(parseInt(e.target.value) || 0)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                    Comentários / Notas (Opcional)
+                  </label>
+                  <textarea
+                    id="edit-workout-comments"
+                    value={editWorkoutComments}
+                    onChange={(e) => setEditWorkoutComments(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-sans h-20 resize-none"
+                    placeholder="Notas ou comentários sobre o desempenho no treino..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    id="btn-cancel-edit-form"
+                    type="button"
+                    onClick={() => setEditingWorkout(null)}
+                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider font-mono transition"
+                  >
+                    Descartar
+                  </button>
+                  <button
+                    id="btn-save-edit-form"
+                    type="submit"
+                    className="py-2.5 bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold rounded-xl text-xs uppercase tracking-wider font-mono transition"
+                  >
+                    Salvar Ajustes
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
