@@ -94,18 +94,21 @@ export const syncLocalToFirebase = async (
       // Copy routines
       localData.routines.forEach((routine) => {
         const ref = doc(collection(db, 'users', userId, 'routines'), routine.id);
+        // Substitui intencionalmente todo o documento para garantir a integridade da rotina
         batch.set(ref, routine);
       });
 
       // Copy weight history
       localData.weights.forEach((w) => {
         const ref = doc(collection(db, 'users', userId, 'weights'), w.id);
+        // Substitui intencionalmente todo o documento para garantir a integridade do peso corporal
         batch.set(ref, w);
       });
 
       // Copy workout history
       localData.history.forEach((workout) => {
         const ref = doc(collection(db, 'users', userId, 'history'), workout.id);
+        // Substitui intencionalmente todo o documento para garantir a integridade do histórico do treino
         batch.set(ref, workout);
       });
 
@@ -219,6 +222,7 @@ export const saveWorkoutSession = async (userId: string, workout: WorkoutHistory
   const path = `users/${userId}/history/${workout.id}`;
   try {
     const ref = doc(db, 'users', userId, 'history', workout.id);
+    // Substitui intencionalmente todo o documento da subcoleção de histórico para manter um log de treino íntegro e autossuficiente
     await setDoc(ref, workout);
   } catch (error) {
     console.error('Error saving workout session:', error);
@@ -247,6 +251,7 @@ export const saveRoutineTemplate = async (userId: string, routine: WorkoutRoutin
   const path = `users/${userId}/routines/${routine.id}`;
   try {
     const ref = doc(db, 'users', userId, 'routines', routine.id);
+    // Substitui intencionalmente todo o documento do modelo de rotina para que todas as modificações da estrutura da rotina sejam sincronizadas por completo
     await setDoc(ref, routine);
   } catch (error) {
     console.error('Error saving routine template:', error);
@@ -275,6 +280,7 @@ export const saveWeightProgress = async (userId: string, weight: WeightEntry) =>
   const path = `users/${userId}/weights/${weight.id}`;
   try {
     const ref = doc(db, 'users', userId, 'weights', weight.id);
+    // Substitui intencionalmente o documento inteiro do registro para garantir precisão e integridade dos dados individuais de peso corporal e anotações
     await setDoc(ref, weight);
   } catch (error) {
     console.error('Error saving weight entry:', error);
@@ -303,6 +309,7 @@ export const saveCustomExercise = async (userId: string, exercise: Exercise) => 
   const path = `users/${userId}/exercises/${exercise.id}`;
   try {
     const ref = doc(db, 'users', userId, 'exercises', exercise.id);
+    // Substitui intencionalmente todo o documento de exercício customizado para assegurar consistência em caso de edição de nome, categoria ou tipo
     await setDoc(ref, exercise);
   } catch (error) {
     console.error('Error saving custom exercise:', error);

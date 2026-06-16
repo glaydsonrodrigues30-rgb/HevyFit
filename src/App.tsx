@@ -243,7 +243,7 @@ export default function App() {
               standardWorkouts: []
             };
 
-            await setDoc(userDocRef, initialUserData);
+            await setDoc(userDocRef, initialUserData, { merge: true });
             console.log("Firebase dados inicializados:", initialUserData);
 
             setHistory(INITIAL_HISTORY);
