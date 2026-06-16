@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firebaseSync';
 import { UserDocProfile, WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
@@ -70,6 +71,7 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
       setUsers(fetchedUsers);
     } catch (error) {
       console.error('Error fetching users for admin view:', error);
+      handleFirestoreError(error, OperationType.LIST, 'users');
     } finally {
       setLoadingUsers(false);
     }
@@ -119,6 +121,7 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
       });
     } catch (error) {
       console.error(`Error loading details for user ${user.userId}:`, error);
+      handleFirestoreError(error, OperationType.LIST, `users/${user.userId}`);
     } finally {
       setLoadingUserData(false);
     }
