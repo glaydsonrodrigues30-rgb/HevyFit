@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dumbbell,
   Trophy,
@@ -164,6 +164,47 @@ export default function App() {
   const [timerRemaining, setTimerRemaining] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
+
+  // Audio context ref for playing rest timer sound
+  const timerAudioCtxRef = useRef<AudioContext | null>(null);
+
+  const playRestTimerSound = () => {
+    try {
+      if (!timerAudioCtxRef.current) {
+        timerAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = timerAudioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const playTone = (freq: number, startTime: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      // Play a beautiful dual-tone chime (e.g., electronic gym bell chime)
+      const now = ctx.currentTime;
+      playTone(523.25, now, 0.4);       // C5 Note
+      playTone(659.25, now + 0.15, 0.5); // E5 Note
+      playTone(783.99, now + 0.3, 0.6);  // G5 Note
+    } catch (e) {
+      console.warn('Fábrica de áudio não inicializou ou falhou:', e);
+    }
+  };
 
   // Workout complete splash celebration metrics
   const [showCelebration, setShowCelebration] = useState(false);
@@ -357,6 +398,7 @@ export default function App() {
         setTimerRemaining(prev => {
           if (prev <= 1) {
             setIsTimerActive(false);
+            playRestTimerSound();
             return 0; // Trigger completion
           }
           return prev - 1;
