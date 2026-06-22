@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Calendar, Award, RefreshCcw, Save, ShieldAlert, Zap } from 'lucide-react';
-import { TrainingCycle } from '../types';
+import { TrainingCycle, getCycleCurrentWeek } from '../types';
 
 interface CycleSettingsProps {
   currentCycle: TrainingCycle | null;
@@ -21,20 +21,27 @@ export default function CycleSettings({
   // Local form state
   const [name, setName] = useState(currentCycle?.name || 'Ciclo de Hipertrofia Básica');
   const [durationWeeks, setDurationWeeks] = useState(currentCycle?.durationWeeks || 8);
-  const [currentWeek, setCurrentWeek] = useState(currentCycle?.currentWeek || 1);
   const [goalWeight, setGoalWeight] = useState(currentCycle?.goalWeight ? String(currentCycle.goalWeight) : '');
   const [targetFocus, setTargetFocus] = useState(currentCycle?.targetFocus || 'Força & Massa Magra');
 
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Compute currentWeek and progress automatically
+  const sDate = currentCycle?.startDate || Date.now();
+  const currentWeek = getCycleCurrentWeek({ startDate: sDate, durationWeeks });
+  const progressPercent = Math.round((currentWeek / durationWeeks) * 100);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const cycleStartDate = currentCycle?.startDate || Date.now();
+    const computedEndDate = cycleStartDate + (Number(durationWeeks) * 7 * 24 * 60 * 60 * 1000);
+
     const cycleData: TrainingCycle = {
       id: currentCycle?.id || 'cycle_' + Date.now(),
       name,
       durationWeeks: Number(durationWeeks),
-      currentWeek: Number(currentWeek),
-      startDate: currentCycle?.startDate || Date.now(),
+      startDate: cycleStartDate,
+      endDate: computedEndDate,
       goalWeight: goalWeight === '' ? null : parseFloat(goalWeight),
       targetFocus
     };
@@ -48,7 +55,6 @@ export default function CycleSettings({
   const handleStartBlank = () => {
     setName('Novo Bloco de Treino');
     setDurationWeeks(6);
-    setCurrentWeek(1);
     setGoalWeight('');
     setTargetFocus('Foco em Definição');
   };
@@ -118,7 +124,7 @@ export default function CycleSettings({
             </div>
           </div>
 
-          {/* Duration Sliders */}
+          {/* Duration configuration & Real-time automatic tracking */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             
             {/* Duration Weeks */}
@@ -138,21 +144,25 @@ export default function CycleSettings({
               />
             </div>
 
-            {/* Current Week select */}
-            <div className="space-y-2 bg-slate-950 p-3.5 border border-slate-850 rounded-xl">
+            {/* Auto weekly progress feedback */}
+            <div className="space-y-2 bg-slate-950 p-3.5 border border-slate-850 rounded-xl flex flex-col justify-between">
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400">Semana Atual:</span>
-                <span className="text-lime-400 font-bold font-mono text-sm">Semana {currentWeek}</span>
+                <span className="text-slate-400">Acompanhamento Automático:</span>
+                <span className="text-lime-400 font-bold font-mono text-sm">Semana {currentWeek} de {durationWeeks}</span>
               </div>
-              <input
-                id="range-cycle-current-week"
-                type="range"
-                min="1"
-                max={durationWeeks}
-                value={currentWeek}
-                onChange={(e) => setCurrentWeek(Number(e.target.value))}
-                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-lime-400"
-              />
+              
+              <div className="space-y-1">
+                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+                  <div 
+                    className="bg-lime-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+                  <span>Progresso Real: {progressPercent}%</span>
+                  <span>Início: {new Date(sDate).toLocaleDateString('pt-BR')}</span>
+                </div>
+              </div>
             </div>
 
           </div>

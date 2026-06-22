@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Dumbbell, Trophy, Flame, Scale, ChevronRight, Activity, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
-import { WorkoutHistory, WeightEntry, TrainingCycle } from '../types';
+import { WorkoutHistory, WeightEntry, TrainingCycle, getCycleCurrentWeek } from '../types';
 import { motion } from 'motion/react';
 
 interface DashboardProps {
@@ -28,6 +28,10 @@ export default function Dashboard({
   const [quickWeight, setQuickWeight] = useState('');
   const [quickNote, setQuickNote] = useState('');
   const [showWeightSuccess, setShowWeightSuccess] = useState(false);
+
+  // Cycle auto tracking calculations
+  const dynamicWeek = currentCycle ? getCycleCurrentWeek(currentCycle) : 1;
+  const progressPct = currentCycle ? Math.round((dynamicWeek / currentCycle.durationWeeks) * 100) : 0;
 
   // Statistics calculation
   const totalWorkouts = history.length;
@@ -309,7 +313,7 @@ export default function Dashboard({
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-semibold text-lime-400 block">
-                      Semana {currentCycle.currentWeek} de {currentCycle.durationWeeks}
+                      Semana {dynamicWeek} de {currentCycle.durationWeeks}
                     </span>
                     <span className="text-xs text-slate-500">
                       Iniciado em: {new Date(currentCycle.startDate).toLocaleDateString('pt-BR')}
@@ -321,13 +325,13 @@ export default function Dashboard({
                 <div className="space-y-1.5 pt-2">
                   <div className="flex justify-between text-[11px] text-slate-400">
                     <span>Início do Bloco</span>
-                    <span>Progresso: {Math.round((currentCycle.currentWeek / currentCycle.durationWeeks) * 100)}%</span>
+                    <span>Progresso: {progressPct}%</span>
                     <span>Fim</span>
                   </div>
                   <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 p-0.5">
                     <div
                       className="bg-gradient-to-r from-lime-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(currentCycle.currentWeek / currentCycle.durationWeeks) * 100}%` }}
+                      style={{ width: `${progressPct}%` }}
                     />
                   </div>
                 </div>

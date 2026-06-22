@@ -20,7 +20,7 @@ import {
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firebaseSync';
-import { UserDocProfile, WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise } from '../types';
+import { UserDocProfile, WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise, getCycleCurrentWeek } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
 
@@ -285,7 +285,7 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                             <p className="text-xs font-bold text-slate-200 truncate">{user.currentCycle?.name}</p>
                             <div className="flex gap-3 text-[10px] text-slate-450 font-semibold">
                               <span>Foco: {user.currentCycle?.targetFocus || 'Hipertrofia'}</span>
-                              <span>Semana: {user.currentCycle?.currentWeek}/{user.currentCycle?.durationWeeks}</span>
+                              <span>Semana: {getCycleCurrentWeek(user.currentCycle)}/{user.currentCycle?.durationWeeks}</span>
                             </div>
                           </div>
                         ) : (
@@ -370,8 +370,8 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                 {selectedUser.currentCycle ? (
                   <div className="space-y-1.5">
                     <p className="text-xs font-bold text-slate-100 truncate">{selectedUser.currentCycle.name}</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-slate-400 font-semibold">
-                      <span>Semana: {selectedUser.currentCycle.currentWeek} de {selectedUser.currentCycle.durationWeeks}</span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-slate-400 font-semibold font-mono">
+                      <span>Semana: {getCycleCurrentWeek(selectedUser.currentCycle)} de {selectedUser.currentCycle.durationWeeks}</span>
                       <span>Meta Peso: {selectedUser.currentCycle.goalWeight || '--'} kg</span>
                       <span className="col-span-2 truncate">Objetivo: {selectedUser.currentCycle.targetFocus || 'Não informado'}</span>
                     </div>

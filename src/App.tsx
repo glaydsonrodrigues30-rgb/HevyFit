@@ -24,7 +24,7 @@ import {
   Lock,
   Edit
 } from 'lucide-react';
-import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise } from './types';
+import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek } from './types';
 import { TEXTS } from './texts';
 import {
   INITIAL_EXERCISES,
@@ -57,9 +57,14 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(false);
 
   // Navigation with URL pathname/hash synchronization
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-    const hash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+  const [activeTab, setActiveTab ] = useState<string>(() => {
+    const rawPath = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
+    const rawHash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+    
+    // Normalize path/hash 'treinar' to 'train'
+    const path = rawPath === 'treinar' ? 'train' : rawPath;
+    const hash = rawHash === 'treinar' ? 'train' : rawHash;
+
     const validTabs = [
       'dashboard',
       'train',
@@ -112,8 +117,13 @@ export default function App() {
   // Handle browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
-      const hash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+      const rawPath = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
+      const rawHash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
+      
+      // Normalize path/hash 'treinar' to 'train'
+      const path = rawPath === 'treinar' ? 'train' : rawPath;
+      const hash = rawHash === 'treinar' ? 'train' : rawHash;
+
       const validTabs = [
         'dashboard',
         'train',
@@ -158,6 +168,10 @@ export default function App() {
   const [editWorkoutDateStr, setEditWorkoutDateStr] = useState('');
   const [editWorkoutDurationMins, setEditWorkoutDurationMins] = useState(0);
   const [editWorkoutComments, setEditWorkoutComments] = useState('');
+
+  // Inline edit states for workout history sessions (sets, weights, reps)
+  const [inlineEditingWorkoutId, setInlineEditingWorkoutId] = useState<string | null>(null);
+  const [inlineEditingExercises, setInlineEditingExercises] = useState<ExerciseWorkoutState[]>([]);
 
   // Rest Timer States - managed globally to stay active while exploring other tabs
   const [timerTotal, setTimerTotal] = useState(90);
@@ -284,6 +298,7 @@ export default function App() {
                 durationWeeks: 8,
                 currentWeek: 2,
                 startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+                endDate: Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 7 * 24 * 60 * 60 * 1000,
                 targetFocus: 'Ganho de Massa Muscular',
                 goalWeight: 78.5
               },
@@ -332,6 +347,7 @@ export default function App() {
         durationWeeks: 8,
         currentWeek: 2,
         startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+        endDate: Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 7 * 24 * 60 * 60 * 1000,
         targetFocus: 'Ganho de Massa Muscular',
         goalWeight: 78.5
       });
@@ -440,7 +456,7 @@ export default function App() {
     };
 
     setActiveWorkout(newActiveWorkout);
-    setActiveTab('treinar'); // Switch to Train tab immediately
+    setActiveTab('train'); // Switch to Train tab immediately
 
     if (currentUser) {
       try {
@@ -494,7 +510,7 @@ export default function App() {
       exercises: exercisesProcessed,
       comments,
       cycleId: currentCycle?.id || undefined,
-      cycleWeek: currentCycle?.currentWeek || undefined
+      cycleWeek: currentCycle ? getCycleCurrentWeek(currentCycle) : undefined
     };
 
     const updatedHistory = [...history, completedHistoryEntry];
@@ -595,6 +611,67 @@ export default function App() {
     }
 
     setEditingWorkout(null);
+  };
+
+  const handleSaveInlineEditWorkout = async (workoutId: string) => {
+    if (!currentUser && !isGuest) {
+      alert('Faça login ou continue como visitante para salvar modificações.');
+      return;
+    }
+
+    const updatedHistory = history.map((w) => {
+      if (w.id === workoutId) {
+        const processedExercises = inlineEditingExercises.map(ex => {
+          return {
+            ...ex,
+            sets: ex.sets.map(s => {
+              const parsedWeight = s.weight === null || isNaN(Number(s.weight)) ? null : Number(s.weight);
+              let cleanReps: string | number = s.reps ?? '0';
+              if (typeof s.reps === 'string' && !isNaN(Number(s.reps)) && s.reps.trim() !== '') {
+                cleanReps = Number(s.reps);
+              }
+              return {
+                ...s,
+                weight: parsedWeight,
+                reps: cleanReps,
+                completed: true
+              };
+            })
+          };
+        });
+
+        return {
+          ...w,
+          exercises: processedExercises
+        };
+      }
+      return w;
+    });
+
+    setHistory(updatedHistory);
+
+    if (currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          workouts: updatedHistory,
+          history: updatedHistory
+        }, { merge: true });
+
+        const targetWorkout = updatedHistory.find(w => w.id === workoutId);
+        if (targetWorkout) {
+          const ref = doc(db, 'users', currentUser.uid, 'history', workoutId);
+          await setDoc(ref, targetWorkout, { merge: true });
+        }
+
+        console.log("Firebase: Edição de séries e cargas salva com sucesso!");
+      } catch (error) {
+        console.error('Error saving inline edited session in Firebase:', error);
+        handleFirestoreError(error, OperationType.WRITE, `users/${currentUser.uid}/history/${workoutId}`);
+      }
+    }
+
+    setInlineEditingWorkoutId(null);
+    setInlineEditingExercises([]);
   };
 
   // Rest Timer Controller functions
@@ -773,6 +850,7 @@ export default function App() {
         durationWeeks: 8,
         currentWeek: 2,
         startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+        endDate: Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 7 * 24 * 60 * 60 * 1000,
         targetFocus: 'Ganho de Massa Muscular',
         goalWeight: 78.5
       });
@@ -1177,6 +1255,9 @@ export default function App() {
                       <div className="space-y-3 mt-4">
                         {workout.exercises.map((ex, exIdx) => {
                           const details = exercises.find(e => e.id === ex.exerciseId);
+                          const isInlineEditing = inlineEditingWorkoutId === workout.id;
+                          const currentEditEx = inlineEditingExercises.find(e => e.exerciseId === ex.exerciseId);
+
                           return (
                             <div key={exIdx} className="bg-slate-950/40 p-3 rounded-xl border border-slate-850/40 space-y-2">
                               <span className="text-xs text-slate-200 font-bold block">
@@ -1185,18 +1266,66 @@ export default function App() {
                               
                               {/* Series logs listing in line */}
                               <div className="flex flex-wrap gap-2 pt-0.5">
-                                {ex.sets.map((s, sIdx) => (
-                                  <div
-                                    key={sIdx}
-                                    className="px-2.5 py-1 bg-slate-900 border border-slate-850 rounded-lg text-slate-300 font-mono text-[10px] flex items-center gap-1.5"
-                                  >
-                                    <span className="text-slate-500 font-bold">#{sIdx + 1}</span>
-                                    <span>{s.weight}kg × {s.reps}</span>
-                                    {s.type === 'Aquecimento' && <span className="text-amber-500 text-[8px] uppercase font-bold leading-none">Aq.</span>}
-                                    {s.type === 'Adaptação' && <span className="text-sky-400 text-[8px] uppercase font-bold leading-none">Ad.</span>}
-                                    {s.type === 'Trabalho' && <span className="text-lime-400 text-[8px] uppercase font-bold leading-none">Tr.</span>}
-                                  </div>
-                                ))}
+                                {isInlineEditing && currentEditEx ? (
+                                  currentEditEx.sets.map((s, sIdx) => (
+                                    <div
+                                      key={sIdx}
+                                      className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 font-mono text-[10px] flex items-center gap-1.5"
+                                    >
+                                      <span className="text-slate-500 font-bold">#{sIdx + 1}</span>
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          step="any"
+                                          value={s.weight !== null ? s.weight : ''}
+                                          onChange={(e) => {
+                                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                                            const updated = [...inlineEditingExercises];
+                                            const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
+                                            if (exToUpdate) {
+                                              exToUpdate.sets[sIdx].weight = val;
+                                            }
+                                            setInlineEditingExercises(updated);
+                                          }}
+                                          className="w-11 bg-slate-950 border border-slate-800 rounded text-center text-[10px] text-white focus:outline-none focus:border-lime-500 p-0.5 font-mono"
+                                          placeholder="0"
+                                        />
+                                        <span className="text-slate-500 text-[9px]">kg</span>
+                                        <span className="text-slate-400 font-bold">×</span>
+                                        <input
+                                          type="text"
+                                          value={s.reps ?? ''}
+                                          onChange={(e) => {
+                                            const updated = [...inlineEditingExercises];
+                                            const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
+                                            if (exToUpdate) {
+                                              exToUpdate.sets[sIdx].reps = e.target.value;
+                                            }
+                                            setInlineEditingExercises(updated);
+                                          }}
+                                          className="w-9 bg-slate-950 border border-slate-800 rounded text-center text-[10px] text-white focus:outline-none focus:border-lime-500 p-0.5 font-mono"
+                                          placeholder="0"
+                                        />
+                                      </div>
+                                      {s.type === 'Aquecimento' && <span className="text-amber-500 text-[8px] uppercase font-bold leading-none">Aq.</span>}
+                                      {s.type === 'Adaptação' && <span className="text-sky-400 text-[8px] uppercase font-bold leading-none">Ad.</span>}
+                                      {s.type === 'Trabalho' && <span className="text-lime-400 text-[8px] uppercase font-bold leading-none">Tr.</span>}
+                                    </div>
+                                  ))
+                                ) : (
+                                  ex.sets.map((s, sIdx) => (
+                                    <div
+                                      key={sIdx}
+                                      className="px-2.5 py-1 bg-slate-900 border border-slate-850 rounded-lg text-slate-300 font-mono text-[10px] flex items-center gap-1.5"
+                                    >
+                                      <span className="text-slate-500 font-bold">#{sIdx + 1}</span>
+                                      <span>{s.weight}kg × {s.reps}</span>
+                                      {s.type === 'Aquecimento' && <span className="text-amber-500 text-[8px] uppercase font-bold leading-none">Aq.</span>}
+                                      {s.type === 'Adaptação' && <span className="text-sky-400 text-[8px] uppercase font-bold leading-none">Ad.</span>}
+                                      {s.type === 'Trabalho' && <span className="text-lime-400 text-[8px] uppercase font-bold leading-none">Tr.</span>}
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
                           );
@@ -1207,14 +1336,50 @@ export default function App() {
                       <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-850/30">
                         <div>
                           {deletingWorkoutId !== workout.id && (
-                            <button
-                              id={`btn-edit-history-${workout.id}`}
-                              onClick={() => handleStartEditWorkout(workout)}
-                              className="flex items-center gap-1.5 text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Editar Treino / Data</span>
-                            </button>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {inlineEditingWorkoutId === workout.id ? (
+                                <>
+                                  <button
+                                    id={`btn-save-inline-edit-${workout.id}`}
+                                    onClick={() => handleSaveInlineEditWorkout(workout.id)}
+                                    className="flex items-center gap-1 text-[10px] bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold uppercase tracking-wider transition-colors py-1.5 px-3 rounded-lg"
+                                  >
+                                    <span>Salvar alterações</span>
+                                  </button>
+                                  <button
+                                    id={`btn-cancel-inline-edit-${workout.id}`}
+                                    onClick={() => {
+                                      setInlineEditingWorkoutId(null);
+                                      setInlineEditingExercises([]);
+                                    }}
+                                    className="flex items-center gap-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold uppercase tracking-wider transition-colors py-1.5 px-3 rounded-lg"
+                                  >
+                                    <span>Cancelar</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    id={`btn-edit-history-direct-${workout.id}`}
+                                    onClick={() => {
+                                      setInlineEditingWorkoutId(workout.id);
+                                      setInlineEditingExercises(JSON.parse(JSON.stringify(workout.exercises)));
+                                    }}
+                                    className="flex items-center gap-1.5 text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                    <span>Editar Treino</span>
+                                  </button>
+                                  <button
+                                    id={`btn-edit-history-${workout.id}`}
+                                    onClick={() => handleStartEditWorkout(workout)}
+                                    className="flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-slate-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
+                                  >
+                                    <span>Campos / Data</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
 

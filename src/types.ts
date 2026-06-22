@@ -52,10 +52,20 @@ export interface TrainingCycle {
   id: string;
   name: string;
   durationWeeks: number;
-  currentWeek: number;
+  currentWeek?: number;
   startDate: number;
+  endDate?: number;
   goalWeight?: number | null;
   targetFocus?: string;
+}
+
+export function getCycleCurrentWeek(cycle: { startDate: number; durationWeeks: number } | null | undefined): number {
+  if (!cycle) return 1;
+  const today = new Date();
+  const start = new Date(cycle.startDate);
+  const diffDays = (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  const calculatedWeek = Math.floor(diffDays / 7) + 1;
+  return Math.max(1, Math.min(calculatedWeek, cycle.durationWeeks));
 }
 
 export interface Exercise {
