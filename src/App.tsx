@@ -1117,7 +1117,9 @@ export default function App() {
             history={history}
             weightHistory={weightHistory}
             currentCycle={currentCycle}
+            routines={routines}
             onNavigate={(tab) => setActiveTab(tab)}
+            onStartWorkout={handleStartWorkout}
             onStartEmptyWorkout={() => handleStartWorkout('Treino Avulso')}
             onAddWeight={handleAddWeight}
           />
