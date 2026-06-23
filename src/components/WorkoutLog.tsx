@@ -1877,31 +1877,94 @@ export default function WorkoutLog({
       {/* MODAL DE VISUALIZAÇÃO E IMPRESSÃO DA FICHA SEMANAL */}
       <AnimatePresence>
         {showPrintModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md overflow-y-auto">
+          <div id="print-modal-backdrop" className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md overflow-y-auto">
             {/* Dynamic CSS styles for clean printing with absolute print containment */}
             <style dangerouslySetInnerHTML={{__html: `
               @media print {
-                body {
+                html, body {
                   background: white !important;
                   color: black !important;
+                  overflow: visible !important;
+                  height: auto !important;
+                  min-height: 0 !important;
                 }
+                /* Hide all on-screen content */
                 body * {
                   visibility: hidden !important;
                 }
-                #print-area, #print-area * {
+                /* Make the print container and its ancestors visible and non-clipping */
+                #root,
+                #print-modal-backdrop,
+                #print-preview-modal,
+                #print-modal-body,
+                #print-area,
+                #print-area * {
                   visibility: visible !important;
                 }
-                #print-area {
+                /* Reset root container to prevent any clipping, scroll restrictions or blank margins */
+                #root {
+                  position: static !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  overflow: visible !important;
+                  display: block !important;
+                }
+                /* Pull the modal backdrop to the absolute top of page 1 to eliminate blank pages */
+                #print-modal-backdrop {
                   position: absolute !important;
                   left: 0 !important;
                   top: 0 !important;
                   width: 100% !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  background: white !important;
+                  backdrop-filter: none !important;
+                  display: block !important;
+                }
+                #print-preview-modal {
+                  position: relative !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  background: white !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  display: block !important;
+                  transform: none !important;
+                }
+                #print-modal-body {
+                  position: relative !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  padding: 0 !important;
+                  background: transparent !important;
+                  display: block !important;
+                }
+                #print-area {
+                  position: relative !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
                   margin: 0 !important;
                   padding: 1.5cm !important;
                   background: white !important;
                   color: black !important;
+                  display: block !important;
                 }
-                /* Hide print overlay buttons during printing */
+                /* Hide elements inside modal container that are not #print-area */
+                #print-modal-backdrop > :not(#print-preview-modal),
+                #print-preview-modal > :not(#print-modal-body),
+                #print-modal-body > :not(#print-area) {
+                  display: none !important;
+                }
+                /* Hide anything marked no-print */
                 .no-print {
                   display: none !important;
                 }
@@ -1947,7 +2010,7 @@ export default function WorkoutLog({
               </div>
 
               {/* Modal Body - Scrollable visual preview */}
-              <div className="flex-1 overflow-y-auto p-6 bg-slate-950/40">
+              <div id="print-modal-body" className="flex-1 overflow-y-auto p-6 bg-slate-950/40">
                 <div className="text-center mb-5 no-print">
                   <span className="text-[11px] bg-slate-900 border border-slate-850 text-slate-300 px-3 py-1.5 rounded-full inline-block font-medium">
                     💡 <strong>Dica:</strong> Na tela de impressão, ative a opção <strong>"Imprimir cores de fundo" / "Imprimir gráficos de fundo"</strong> para um visual perfeito.

@@ -41,6 +41,7 @@ import CycleSettings from './components/CycleSettings';
 import RestTimerOverlay from './components/RestTimerOverlay';
 import Login from './components/Login';
 import AdminView from './components/AdminView';
+import WeeklyReport from './components/WeeklyReport';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, logOut, db } from './lib/firebase';
 import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
@@ -109,7 +110,11 @@ export default function App() {
     if (validTabs.includes(activeTab)) {
       const path = activeTab === 'dashboard' ? '/' : `/${activeTab}`;
       if (window.location.pathname !== path) {
-        window.history.pushState({ tab: activeTab }, '', path);
+        try {
+          window.history.pushState({ tab: activeTab }, '', path);
+        } catch (e) {
+          console.warn('Navigation state could not be pushed to history (sandboxed iframe constraints):', e);
+        }
       }
     }
   }, [activeTab, currentUser, authLoading]);
@@ -172,6 +177,7 @@ export default function App() {
   // Inline edit states for workout history sessions (sets, weights, reps)
   const [inlineEditingWorkoutId, setInlineEditingWorkoutId] = useState<string | null>(null);
   const [inlineEditingExercises, setInlineEditingExercises] = useState<ExerciseWorkoutState[]>([]);
+  const [historySubTab, setHistorySubTab] = useState<'feed' | 'report'>('feed');
 
   // Rest Timer States - managed globally to stay active while exploring other tabs
   const [timerTotal, setTimerTotal] = useState(90);
@@ -1193,17 +1199,49 @@ export default function App() {
 
         {activeTab === 'history' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-white tracking-tight">Histórico de Treinos</h2>
                 <p className="text-xs text-slate-400">Suas sessões de treino passadas com os logs estilo Hevy.</p>
               </div>
-              <span className="text-xs text-slate-500 font-mono font-bold bg-slate-900 border border-slate-850 px-2.5 py-1 rounded-md">
-                {history.length} sessões registradas
-              </span>
+              
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-850">
+                  <button
+                    type="button"
+                    id="btn-history-subtab-feed"
+                    onClick={() => setHistorySubTab('feed')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                      historySubTab === 'feed'
+                        ? 'bg-slate-850 text-white font-bold'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Feed de Treinos
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-history-subtab-report"
+                    onClick={() => setHistorySubTab('report')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all ${
+                      historySubTab === 'report'
+                        ? 'bg-[#a3e635] text-slate-950 font-bold shadow-md shadow-lime-500/10'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Progresso Semanal</span>
+                  </button>
+                </div>
+                <span className="hidden sm:inline-block text-xs text-slate-500 font-mono font-bold bg-slate-900 border border-slate-850 px-2.5 py-1.5 rounded-xl">
+                  {history.length} sessões
+                </span>
+              </div>
             </div>
 
-            {history.length === 0 ? (
+            {historySubTab === 'report' ? (
+              <WeeklyReport history={history} availableExercises={exercises} />
+            ) : history.length === 0 ? (
               <div className="text-center p-12 bg-slate-900 border border-slate-850 rounded-2xl flex flex-col items-center">
                 <History className="w-12 h-12 text-slate-700 mb-2" />
                 <span className="text-sm font-semibold text-white">Nenhum treino no feed</span>
