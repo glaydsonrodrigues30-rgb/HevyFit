@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Play, Clipboard, Dumbbell, Trash2, Plus, Check, Undo, Search, Filter, X, ChevronDown, Award, Edit, Printer } from 'lucide-react';
+import { Play, Clipboard, Dumbbell, Trash2, Plus, Check, Undo, Search, Filter, X, ChevronDown, ChevronUp, Award, Edit, Printer, AlertCircle } from 'lucide-react';
 import { ActiveWorkout, Exercise, ExerciseWorkoutState, SetState, SetType, WorkoutHistory, WorkoutRoutine } from '../types';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
 import { motion, AnimatePresence } from 'motion/react';
@@ -87,6 +87,7 @@ export default function WorkoutLog({
 
   // Print Modal State
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
 
   // Exercise Rename States
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
@@ -222,6 +223,20 @@ export default function WorkoutLog({
 
   const handleRemoveExerciseFromRoutine = (exerciseId: string) => {
     setRoutineFormExercises(prev => prev.filter(e => e.exerciseId !== exerciseId));
+  };
+
+  const handleMoveRoutineExercise = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === routineFormExercises.length - 1) return;
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    setRoutineFormExercises(prev => {
+      const copy = [...prev];
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
   };
 
   const handleAddSetToRoutineExercise = (exerciseId: string) => {
@@ -1493,15 +1508,37 @@ export default function WorkoutLog({
                               )}
                               <span className="text-[9px] text-slate-500 font-mono tracking-wide block">{exDetails?.targetMuscle} • {exDetails?.equipment}</span>
                             </div>
-                            <button
-                              id={`btn-remove-exercise-from-routine-${item.exerciseId}`}
-                              type="button"
-                              onClick={() => handleRemoveExerciseFromRoutine(item.exerciseId)}
-                              className="text-slate-500 hover:text-rose-400 p-1.5 rounded hover:bg-rose-500/10 transition"
-                              title="Remover exercício da rotina"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              {/* Reorder controls */}
+                              <button
+                                type="button"
+                                disabled={id === 0}
+                                onClick={() => handleMoveRoutineExercise(id, 'up')}
+                                className="text-slate-500 hover:text-lime-400 disabled:text-slate-800 disabled:hover:text-slate-800 p-1.5 rounded hover:bg-slate-900/50 transition"
+                                title="Mover para cima"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={id === routineFormExercises.length - 1}
+                                onClick={() => handleMoveRoutineExercise(id, 'down')}
+                                className="text-slate-500 hover:text-lime-400 disabled:text-slate-800 disabled:hover:text-slate-800 p-1.5 rounded hover:bg-slate-900/50 transition"
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                id={`btn-remove-exercise-from-routine-${item.exerciseId}`}
+                                type="button"
+                                onClick={() => handleRemoveExerciseFromRoutine(item.exerciseId)}
+                                className="text-slate-500 hover:text-rose-400 p-1.5 rounded hover:bg-rose-500/10 transition ml-1"
+                                title="Remover exercício da rotina"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Sets table */}
@@ -1901,13 +1938,16 @@ export default function WorkoutLog({
                 #print-area * {
                   visibility: visible !important;
                 }
-                /* Reset root container to prevent any clipping, scroll restrictions or blank margins */
-                #root {
+                /* Force reset layout, margins, flexbox constraints on root and all intermediate wrapper ancestors up to body */
+                html, body, #root, #root > div, main, main > div, #print-modal-backdrop, #print-preview-modal, #print-modal-body {
                   position: static !important;
+                  overflow: visible !important;
                   height: auto !important;
                   min-height: 0 !important;
-                  overflow: visible !important;
+                  max-height: none !important;
                   display: block !important;
+                  background: white !important;
+                  color: black !important;
                 }
                 /* Pull the modal backdrop to the absolute top of page 1 to eliminate blank pages */
                 #print-modal-backdrop {
@@ -1915,48 +1955,35 @@ export default function WorkoutLog({
                   left: 0 !important;
                   top: 0 !important;
                   width: 100% !important;
-                  height: auto !important;
-                  max-height: none !important;
-                  overflow: visible !important;
                   padding: 0 !important;
                   margin: 0 !important;
-                  background: white !important;
                   backdrop-filter: none !important;
-                  display: block !important;
                 }
                 #print-preview-modal {
                   position: relative !important;
                   width: 100% !important;
-                  height: auto !important;
-                  max-height: none !important;
-                  overflow: visible !important;
-                  background: white !important;
                   border: none !important;
                   box-shadow: none !important;
-                  display: block !important;
                   transform: none !important;
                 }
                 #print-modal-body {
                   position: relative !important;
                   width: 100% !important;
-                  height: auto !important;
-                  max-height: none !important;
-                  overflow: visible !important;
                   padding: 0 !important;
                   background: transparent !important;
-                  display: block !important;
                 }
                 #print-area {
                   position: relative !important;
                   width: 100% !important;
-                  height: auto !important;
-                  max-height: none !important;
-                  overflow: visible !important;
                   margin: 0 !important;
                   padding: 1.5cm !important;
                   background: white !important;
                   color: black !important;
-                  display: block !important;
+                }
+                /* Prevent split layout of individual workout routines across pages */
+                .break-inside-avoid {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
                 }
                 /* Hide elements inside modal container that are not #print-area */
                 #print-modal-backdrop > :not(#print-preview-modal),
@@ -1993,7 +2020,17 @@ export default function WorkoutLog({
                 <div className="flex items-center gap-2">
                   <button
                     id="btn-trigger-print"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      try {
+                        setPrintError(null);
+                        window.print();
+                      } catch (err) {
+                        console.warn("Print blocked by sandbox:", err);
+                        setPrintError(
+                          "A impressão direta pelo navegador foi impedida pelas restrições de segurança do iframe. Por favor, clique no botão 'Abrir em nova aba' (no topo superior direito do painel de desenvolvimento) para abrir o app em tela inteira e executar a impressão com sucesso!"
+                        );
+                      }
+                    }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs uppercase tracking-wider font-mono shadow-md transition active:scale-95"
                   >
                     <Printer className="w-4 h-4 text-slate-950" />
@@ -2011,6 +2048,18 @@ export default function WorkoutLog({
 
               {/* Modal Body - Scrollable visual preview */}
               <div id="print-modal-body" className="flex-1 overflow-y-auto p-6 bg-slate-950/40">
+                {printError && (
+                  <div className="text-left mb-5 max-w-[210mm] mx-auto bg-amber-500/10 border-2 border-amber-500/20 p-4 rounded-xl text-amber-300 text-xs font-sans">
+                    <div className="flex gap-2.5 items-start">
+                      <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-extrabold mb-1 uppercase tracking-wider text-[11px] text-amber-400">⚠️ Impressão Indisponível no painel</strong>
+                        <p className="text-amber-200/90 leading-relaxed font-medium">{printError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center mb-5 no-print">
                   <span className="text-[11px] bg-slate-900 border border-slate-850 text-slate-300 px-3 py-1.5 rounded-full inline-block font-medium">
                     💡 <strong>Dica:</strong> Na tela de impressão, ative a opção <strong>"Imprimir cores de fundo" / "Imprimir gráficos de fundo"</strong> para um visual perfeito.
@@ -2075,13 +2124,13 @@ export default function WorkoutLog({
                       if (dayRoutines.length === 0) return null;
 
                       return (
-                        <div key={day.key} className="break-inside-avoid space-y-4 text-left">
+                        <div key={day.key} className="space-y-4 text-left">
                           <h2 className="text-sm font-extrabold uppercase tracking-widest text-[11px] text-white bg-black px-3 py-1.5 rounded-md inline-block font-mono">
                             📅 {day.label}
                           </h2>
                           
                           {dayRoutines.map((routine) => (
-                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white">
+                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white break-inside-avoid">
                               <div className="border-b-2 border-black/10 pb-2 flex justify-between items-start">
                                 <div>
                                   <h3 className="text-base font-black text-black uppercase">{routine.name}</h3>
@@ -2177,13 +2226,13 @@ export default function WorkoutLog({
                       if (unlinkedRoutines.length === 0) return null;
 
                       return (
-                        <div className="break-inside-avoid space-y-4 text-left">
+                        <div className="space-y-4 text-left">
                           <h2 className="text-sm font-extrabold uppercase tracking-widest text-[11px] text-slate-800 bg-slate-200 px-3 py-1.5 rounded-md inline-block font-mono">
                             🔄 Outras Rotinas (Sem dia fixo)
                           </h2>
 
                           {unlinkedRoutines.map((routine) => (
-                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white">
+                            <div key={routine.id} className="border-2 border-black/15 rounded-xl p-4 space-y-3 bg-white break-inside-avoid">
                               <div className="border-b-2 border-black/10 pb-2 flex justify-between items-start">
                                 <div>
                                   <h3 className="text-base font-black text-black uppercase">{routine.name}</h3>

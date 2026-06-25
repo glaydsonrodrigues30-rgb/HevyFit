@@ -25,6 +25,7 @@ export default function CycleSettings({
   const [targetFocus, setTargetFocus] = useState(currentCycle?.targetFocus || 'Força & Massa Magra');
 
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
   // Compute currentWeek and progress automatically
   const sDate = currentCycle?.startDate || Date.now();
@@ -168,29 +169,60 @@ export default function CycleSettings({
           </div>
 
           {/* Action Row */}
-          <div className="flex flex-wrap gap-3 pt-3">
-            <button
-              id="btn-save-cycle"
-              type="submit"
-              className="flex-1 min-w-[150px] flex items-center justify-center gap-2 bg-lime-500 hover:bg-lime-600 font-bold font-sans py-2.5 rounded-xl text-slate-950 text-xs transition shadow-lg shadow-lime-500/10"
-            >
-              <Save className="w-4 h-4" />
-              <span>Salvar Alterações</span>
-            </button>
+          <div className="flex flex-col gap-4 pt-3">
+            {!showRestartConfirm ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  id="btn-save-cycle"
+                  type="submit"
+                  className="flex-1 min-w-[150px] flex items-center justify-center gap-2 bg-lime-500 hover:bg-lime-600 font-bold font-sans py-2.5 rounded-xl text-slate-950 text-xs transition shadow-lg shadow-lime-500/10"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Salvar Alterações</span>
+                </button>
 
-            <button
-               id="btn-restart-cycle-prompt"
-               type="button"
-               onClick={() => {
-                 if(window.confirm('Tem certeza de que deseja reiniciar o ciclo e redefinir as semanas?')) {
-                   onRestartCycle();
-                   handleStartBlank();
-                 }
-               }}
-               className="px-4 py-2 bg-slate-950 hover:bg-red-500/10 text-red-400 border border-slate-850 hover:border-red-500/25 rounded-xl text-xs font-semibold transition"
-            >
-              Excluir / Reiniciar
-            </button>
+                <button
+                  id="btn-restart-cycle-prompt"
+                  type="button"
+                  onClick={() => setShowRestartConfirm(true)}
+                  className="px-4 py-2 bg-slate-950 hover:bg-red-500/10 text-red-400 border border-slate-850 hover:border-red-500/25 rounded-xl text-xs font-semibold transition"
+                >
+                  Excluir / Reiniciar
+                </button>
+              </div>
+            ) : (
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-red-500/20 text-left space-y-3">
+                <div className="flex gap-2 text-red-400 items-start">
+                  <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="font-bold text-xs">Confirmar Reinicialização de Ciclo?</h5>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
+                      Isso redefinirá a contagem de semanas do seu ciclo de treinamento atual. Os dados salvos do histórico não serão excluídos.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowRestartConfirm(false)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onRestartCycle();
+                      handleStartBlank();
+                      setShowRestartConfirm(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white transition"
+                  >
+                    Sim, Reiniciar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {saveSuccess && (

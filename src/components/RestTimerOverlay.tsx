@@ -31,8 +31,13 @@ export default function RestTimerOverlay({
   // Sound notification when timer finishes
   const playAlertSound = () => {
     try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) {
+        console.warn('AudioContext not supported');
+        return;
+      }
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new AudioCtx();
       }
       const ctx = audioContextRef.current;
       if (ctx.state === 'suspended') {

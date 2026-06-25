@@ -48,6 +48,7 @@ export default function WeeklyReport({
 }: WeeklyReportProps) {
   const [groupingType, setGroupingType] = useState<'calendar' | 'cycle'>('calendar');
   const [expandedWeekKey, setExpandedWeekKey] = useState<string | null>(null);
+  const [printError, setPrintError] = useState<string | null>(null);
 
   // Map to find exercise human name
   const getExerciseName = (exId: string): string => {
@@ -273,7 +274,15 @@ export default function WeeklyReport({
   }, [history, weeklyEvolutions]);
 
   const handlePrint = () => {
-    window.print();
+    try {
+      setPrintError(null);
+      window.print();
+    } catch (err) {
+      console.warn("Print failed or was blocked inside sandbox:", err);
+      setPrintError(
+        "A impressão não é permitida diretamente de dentro do painel integrado (Preview) por restrições de segurança do iframe. Por favor, clique no botão de 'Abrir em nova aba' (no topo superior direito do painel do AI Studio) para abrir e imprimir o relatório em tela cheia com sucesso!"
+      );
+    }
   };
 
   if (!history || history.length === 0) {
@@ -353,6 +362,16 @@ export default function WeeklyReport({
           </button>
         </div>
       </div>
+
+      {printError && (
+        <div className="bg-amber-500/10 border-2 border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 text-amber-300 text-xs text-left">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-extrabold uppercase font-mono tracking-wider text-[11px] text-amber-400">Impressão Bloqueada no Preview</h4>
+            <p className="font-medium text-[11px] leading-relaxed text-amber-200/90">{printError}</p>
+          </div>
+        </div>
+      )}
 
       {/* 2. OVERALL KPIs (Top summary card row) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
@@ -468,7 +487,7 @@ export default function WeeklyReport({
                 </div>
 
                 {/* Expanded/Report Details (Open by Default or Toggle) */}
-                {(isExpanded || window.matchMedia('print').matches) && (
+                {(isExpanded || (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('print').matches)) && (
                   <div className="border-t border-slate-850 p-6 space-y-6 bg-slate-950/20 print:border-slate-300 print:bg-white print:p-0">
                     
                     {/* Part A: Metrics Dashboard for this specific week */}

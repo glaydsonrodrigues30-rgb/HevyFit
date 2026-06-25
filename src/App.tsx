@@ -190,8 +190,13 @@ export default function App() {
 
   const playRestTimerSound = () => {
     try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) {
+        console.warn('AudioContext not supported');
+        return;
+      }
       if (!timerAudioCtxRef.current) {
-        timerAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        timerAudioCtxRef.current = new AudioCtx();
       }
       const ctx = timerAudioCtxRef.current;
       if (ctx.state === 'suspended') {
