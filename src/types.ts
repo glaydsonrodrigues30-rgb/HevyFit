@@ -120,4 +120,115 @@ export interface UserDocProfile {
   lastSeen?: string;
 }
 
+export type RunType =
+  | 'A leve/continuo'
+  | 'B fartlek ou trote-caminhada'
+  | 'C moderado ou tiros'
+  | 'Simulado 12 min'
+  | 'Teste';
+
+export interface RunInterval {
+  id: string;
+  order: number;
+  label?: string; // e.g. "Tiro 1", "Trote 2m", "Fartlek forte"
+  distanceMeters?: number; // e.g. 400, 800, 1000
+  speedKmh?: number; // e.g. 11.0
+  durationSeconds?: number; // e.g. 131
+  durationFormatted?: string; // e.g. "2:11"
+  restSeconds?: number; // e.g. 90
+  restType?: 'trote' | 'caminhada' | 'parado';
+  notes?: string;
+}
+
+export interface RunLog {
+  id: string;
+  date: string; // ISO format or YYYY-MM-DD
+  timestamp: number;
+  type: RunType;
+  durationMinutes: number;
+  distanceKm: number;
+  inclinePct: number; // default 1.0%
+  rpe: number; // 1 to 10
+  speedKmh: number; // km/h
+  paceFormatted: string; // e.g. "5:27/km"
+  paceSecondsPerKm: number; // seconds per km
+  intervals?: RunInterval[];
+  notes?: string;
+  tafTargetAchieved?: boolean; // True if >= 2.2km in 12 min or pace <= 5:27/km
+  tafWeekNumber?: number; // 1 to 17
+  createdAt?: string;
+}
+
+// Pace / Speed calculation helpers
+export function speedKmhToPace(speedKmh: number): { formatted: string; totalSeconds: number; minutes: number; seconds: number } {
+  if (!speedKmh || speedKmh <= 0) {
+    return { formatted: '--:--/km', totalSeconds: 0, minutes: 0, seconds: 0 };
+  }
+  const paceMinutesDecimal = 60 / speedKmh;
+  const totalSeconds = Math.round(paceMinutesDecimal * 60);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+  return { formatted, totalSeconds, minutes, seconds };
+}
+
+export function paceToSpeedKmh(minutes: number, seconds: number): number {
+  const totalSeconds = minutes * 60 + seconds;
+  if (totalSeconds <= 0) return 0;
+  return Number(((3600 / totalSeconds)).toFixed(2));
+}
+
+export function calculateRunStats(durationMinutes: number, distanceKm: number) {
+  if (durationMinutes <= 0 || distanceKm <= 0) {
+    return {
+      speedKmh: 0,
+      paceFormatted: '--:--/km',
+      paceSecondsPerKm: 0,
+    };
+  }
+  const speedKmh = Number(((distanceKm / durationMinutes) * 60).toFixed(2));
+  const pace = speedKmhToPace(speedKmh);
+  return {
+    speedKmh,
+    paceFormatted: pace.formatted,
+    paceSecondsPerKm: pace.totalSeconds,
+  };
+}
+
+export interface TafWorkoutDef {
+  key: 'A' | 'B' | 'C';
+  title: string;
+  dayOfWeek: 1 | 3 | 6; // 1 = Monday, 3 = Wednesday, 6 = Saturday
+  dayName: 'Segunda-feira' | 'Quarta-feira' | 'Sábado';
+  type: RunType;
+  suggestedDurationMinutes: number;
+  suggestedDistanceKm?: number;
+  suggestedSpeedRange: string; // e.g. "7 a 8,5 km/h"
+  suggestedSpeedMin: number;
+  suggestedSpeedMax: number;
+  targetPaceFormatted: string; // e.g. "5:27/km"
+  intensityLabel: 'Leve' | 'Moderado' | 'Ritmo-alvo' | 'Acima do alvo' | 'Simulado' | 'Descanso / Taper';
+  warmup: string; // "5 min caminhando + 3 a 5 min de trote"
+  cooldown: string; // "5 min de caminhada / volta à calma"
+  incline: string; // "1% de inclinação"
+  description: string;
+  intervals?: RunInterval[];
+  isTafSimulation?: boolean;
+}
+
+export interface TafWeekDef {
+  weekNumber: number;
+  phaseNumber: 1 | 2 | 3 | 4;
+  phaseName: 'Base' | 'Resistência' | 'Ritmo-alvo' | 'Específico e pico';
+  phaseGoals: string;
+  startDate: string; // e.g. "2026-11-02"
+  endDate: string; // e.g. "2026-11-08"
+  workouts: {
+    A: TafWorkoutDef;
+    B: TafWorkoutDef;
+    C: TafWorkoutDef;
+  };
+}
+
+
 

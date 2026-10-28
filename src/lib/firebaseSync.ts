@@ -8,7 +8,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise } from '../types';
+import { WorkoutHistory, WorkoutRoutine, WeightEntry, TrainingCycle, Exercise, RunLog } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -68,6 +68,7 @@ export const syncLocalToFirebase = async (
     routines: WorkoutRoutine[];
     weights: WeightEntry[];
     cycle: TrainingCycle | null;
+    runs?: RunLog[];
   }
 ) => {
   const userPath = `users/${userId}`;
@@ -94,23 +95,28 @@ export const syncLocalToFirebase = async (
       // Copy routines
       localData.routines.forEach((routine) => {
         const ref = doc(collection(db, 'users', userId, 'routines'), routine.id);
-        // Substitui intencionalmente todo o documento para garantir a integridade da rotina
         batch.set(ref, routine);
       });
 
       // Copy weight history
       localData.weights.forEach((w) => {
         const ref = doc(collection(db, 'users', userId, 'weights'), w.id);
-        // Substitui intencionalmente todo o documento para garantir a integridade do peso corporal
         batch.set(ref, w);
       });
 
       // Copy workout history
       localData.history.forEach((workout) => {
         const ref = doc(collection(db, 'users', userId, 'history'), workout.id);
-        // Substitui intencionalmente todo o documento para garantir a integridade do histórico do treino
         batch.set(ref, workout);
       });
+
+      // Copy running logs if any
+      if (localData.runs && localData.runs.length > 0) {
+        localData.runs.forEach((run) => {
+          const ref = doc(collection(db, 'users', userId, 'runs'), run.id);
+          batch.set(ref, run);
+        });
+      }
 
       try {
         await batch.commit();
@@ -189,17 +195,35 @@ export const loadUserDataFromFirestore = async (userId: string) => {
     }
     weights.sort((a, b) => a.timestamp - b.timestamp);
 
+    // 5. Running logs
+    const runsPath = `users/${userId}/runs`;
+    let runsSnap;
+    try {
+      runsSnap = await getDocs(collection(db, 'users', userId, 'runs'));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, runsPath);
+    }
+    const runs: RunLog[] = [];
+    if (runsSnap) {
+      runsSnap.forEach((doc) => {
+        runs.push(doc.data() as RunLog);
+      });
+    }
+    runs.sort((a, b) => a.timestamp - b.timestamp);
+
     return {
       currentCycle,
       history,
       routines,
-      weights
+      weights,
+      runs
     };
   } catch (error) {
     console.error('Error loading Firestore data:', error);
     throw error;
   }
 };
+
 
 /**
  * Saves or updates user document (including training cycle configuration).
@@ -330,4 +354,33 @@ export const deleteCustomExercise = async (userId: string, exerciseId: string) =
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
+
+/**
+ * Saves a running session log in Firestore.
+ */
+export const saveRunLog = async (userId: string, run: RunLog) => {
+  const path = `users/${userId}/runs/${run.id}`;
+  try {
+    const ref = doc(db, 'users', userId, 'runs', run.id);
+    await setDoc(ref, run);
+  } catch (error) {
+    console.error('Error saving run session:', error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+/**
+ * Deletes a running session log from Firestore.
+ */
+export const deleteRunLog = async (userId: string, runId: string) => {
+  const path = `users/${userId}/runs/${runId}`;
+  try {
+    const ref = doc(db, 'users', userId, 'runs', runId);
+    await deleteDoc(ref);
+  } catch (error) {
+    console.error('Error deleting run session:', error);
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+};
+
 

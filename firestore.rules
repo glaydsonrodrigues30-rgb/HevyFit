@@ -48,6 +48,11 @@ service cloud.firestore {
       return !('id' in data) || (data.id is string && data.id.size() <= 128);
     }
 
+    // 6. Run Validation Helper
+    function isValidRun(data) {
+      return !('id' in data) || (data.id is string && data.id.size() <= 128);
+    }
+
     // Athlete namespace: Users and subcollections
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
@@ -76,6 +81,12 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isAdmin();
         allow create, update: if isOwner(userId) && isValidId(weightId) && isValidWeightEntry(request.resource.data);
         allow delete: if isOwner(userId) && isValidId(weightId);
+      }
+
+      match /runs/{runId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidId(runId) && isValidRun(request.resource.data);
+        allow delete: if isOwner(userId) && isValidId(runId);
       }
     }
   }

@@ -22,9 +22,11 @@ import {
   Sparkles,
   Info,
   Lock,
-  Edit
+  Edit,
+  Timer,
+  Target
 } from 'lucide-react';
-import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek } from './types';
+import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek, RunLog, TafWorkoutDef } from './types';
 import { TEXTS } from './texts';
 import {
   INITIAL_EXERCISES,
@@ -42,34 +44,59 @@ import RestTimerOverlay from './components/RestTimerOverlay';
 import Login from './components/Login';
 import AdminView from './components/AdminView';
 import WeeklyReport from './components/WeeklyReport';
+import RunningTracker from './components/RunningTracker';
+import TafPlanView from './components/TafPlanView';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, logOut, db } from './lib/firebase';
 import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import {
   handleFirestoreError,
-  OperationType
+  OperationType,
+  saveRunLog,
+  deleteRunLog
 } from './lib/firebaseSync';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   // Auth and Guest States
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const savedLocalUser = localStorage.getItem('hevyfit_local_user');
+    if (savedLocalUser) {
+      try {
+        return JSON.parse(savedLocalUser);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [authLoading, setAuthLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return localStorage.getItem('hevyfit_is_guest') === 'true';
+  });
 
   // Navigation with URL pathname/hash synchronization
   const [activeTab, setActiveTab ] = useState<string>(() => {
     const rawPath = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
     const rawHash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
     
-    // Normalize path/hash 'treinar' to 'train'
-    const path = rawPath === 'treinar' ? 'train' : rawPath;
-    const hash = rawHash === 'treinar' ? 'train' : rawHash;
+    // Normalize path/hash 'treinar' to 'train', 'corrida' to 'running', 'taf' to 'taf_plan'
+    const normalizeTab = (val: string) => {
+      if (val === 'treinar') return 'train';
+      if (val === 'corrida') return 'running';
+      if (val === 'taf' || val === 'plano-taf' || val === 'planotaf') return 'taf_plan';
+      return val;
+    };
+
+    const path = normalizeTab(rawPath);
+    const hash = normalizeTab(rawHash);
 
     const validTabs = [
       'dashboard',
       'train',
       'history',
+      'running',
+      'taf_plan',
       'exercises',
       'weight',
       'cycle',
@@ -92,6 +119,8 @@ export default function App() {
       'dashboard',
       'train',
       'history',
+      'running',
+      'taf_plan',
       'exercises',
       'weight',
       'cycle',
@@ -125,14 +154,22 @@ export default function App() {
       const rawPath = window.location.pathname.replace(/^\/|\/$/g, '').toLowerCase();
       const rawHash = window.location.hash.replace(/^#\/?/g, '').toLowerCase();
       
-      // Normalize path/hash 'treinar' to 'train'
-      const path = rawPath === 'treinar' ? 'train' : rawPath;
-      const hash = rawHash === 'treinar' ? 'train' : rawHash;
+      const normalizeTab = (val: string) => {
+        if (val === 'treinar') return 'train';
+        if (val === 'corrida') return 'running';
+        if (val === 'taf' || val === 'plano-taf' || val === 'planotaf') return 'taf_plan';
+        return val;
+      };
+
+      const path = normalizeTab(rawPath);
+      const hash = normalizeTab(rawHash);
 
       const validTabs = [
         'dashboard',
         'train',
         'history',
+        'running',
+        'taf_plan',
         'exercises',
         'weight',
         'cycle',
@@ -162,6 +199,15 @@ export default function App() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
   const [standardWorkouts, setStandardWorkouts] = useState<StandardWorkout[]>([]);
+  const [runs, setRuns] = useState<RunLog[]>(() => {
+    try {
+      const saved = localStorage.getItem('hevyfit_runs');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [pendingTafRun, setPendingTafRun] = useState<Partial<RunLog> | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Delete confirm state for workouts history
@@ -280,6 +326,10 @@ export default function App() {
             if (data.standardWorkouts !== undefined) {
               setStandardWorkouts(data.standardWorkouts);
             }
+            if (data.runs !== undefined) {
+              setRuns(data.runs);
+              localStorage.setItem('hevyfit_runs', JSON.stringify(data.runs));
+            }
 
             // Always update basic info to keep admin user list current
             await setDoc(userDocRef, {
@@ -338,7 +388,22 @@ export default function App() {
           setIsLoaded(true);
         }
       } else {
-        setCurrentUser(null);
+        // If not authenticated via Firebase, check if user has local bypass session or guest mode
+        const savedLocalUser = localStorage.getItem('hevyfit_local_user');
+        if (savedLocalUser) {
+          try {
+            setCurrentUser(JSON.parse(savedLocalUser));
+            setIsGuest(false);
+          } catch (e) {
+            setCurrentUser(null);
+          }
+        } else if (localStorage.getItem('hevyfit_is_guest') === 'true') {
+          setIsGuest(true);
+          setCurrentUser(null);
+        } else {
+          setCurrentUser(null);
+          setIsGuest(false);
+        }
         setAuthLoading(false);
         setIsLoaded(true);
       }
@@ -347,30 +412,32 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Set default guest memory data when offline mode is requested
+  // Set default guest or local memory data when offline or local mode is active
   useEffect(() => {
-    if (!currentUser && isGuest) {
-      setHistory(INITIAL_HISTORY);
-      setWeightHistory(INITIAL_WEIGHT_HISTORY);
-      setCurrentCycle({
-        id: 'cycle_default',
-        name: 'Block de Hipertrofia do Inverno',
-        durationWeeks: 8,
-        currentWeek: 2,
-        startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
-        endDate: Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 7 * 24 * 60 * 60 * 1000,
-        targetFocus: 'Ganho de Massa Muscular',
-        goalWeight: 78.5
-      });
-      setExercises(INITIAL_EXERCISES);
-      setRoutines(INITIAL_ROUTINES);
+    if ((!currentUser && isGuest) || (currentUser && !auth.currentUser)) {
+      if (history.length === 0) setHistory(INITIAL_HISTORY);
+      if (weightHistory.length === 0) setWeightHistory(INITIAL_WEIGHT_HISTORY);
+      if (!currentCycle) {
+        setCurrentCycle({
+          id: 'cycle_default',
+          name: 'Block de Hipertrofia do Inverno',
+          durationWeeks: 8,
+          currentWeek: 2,
+          startDate: Date.now() - 10 * 24 * 60 * 60 * 1000,
+          endDate: Date.now() - 10 * 24 * 60 * 60 * 1000 + 8 * 7 * 24 * 60 * 60 * 1000,
+          targetFocus: 'Ganho de Massa Muscular',
+          goalWeight: 78.5
+        });
+      }
+      if (exercises.length === 0) setExercises(INITIAL_EXERCISES);
+      if (routines.length === 0) setRoutines(INITIAL_ROUTINES);
       setActiveWorkout(null);
     }
   }, [currentUser, isGuest]);
 
-  // Real-time Firestore synchronization for unified server data across all devices
+  // Real-time Firestore synchronization for authenticated Firebase users
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !auth.currentUser) return;
 
     const userDocRef = doc(db, 'users', currentUser.uid);
     const unsubUser = onSnapshot(userDocRef, (docSnap) => {
@@ -408,6 +475,11 @@ export default function App() {
 
         if (data.standardWorkouts !== undefined) {
           setStandardWorkouts(data.standardWorkouts as StandardWorkout[]);
+        }
+
+        if (data.runs !== undefined) {
+          setRuns(data.runs as RunLog[]);
+          localStorage.setItem('hevyfit_runs', JSON.stringify(data.runs));
         }
       }
     }, (error) => {
@@ -469,7 +541,7 @@ export default function App() {
     setActiveWorkout(newActiveWorkout);
     setActiveTab('train'); // Switch to Train tab immediately
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           activeWorkout: newActiveWorkout
@@ -482,7 +554,7 @@ export default function App() {
 
   const handleCancelWorkout = async () => {
     setActiveWorkout(null);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           activeWorkout: null
@@ -528,7 +600,7 @@ export default function App() {
     setHistory(updatedHistory);
 
     // Save to Firestore if user is authenticated
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           workouts: updatedHistory,
@@ -609,7 +681,7 @@ export default function App() {
 
     setHistory(updatedHistory);
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           workouts: updatedHistory,
@@ -661,7 +733,7 @@ export default function App() {
 
     setHistory(updatedHistory);
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           workouts: updatedHistory,
@@ -720,7 +792,7 @@ export default function App() {
     const updated = [...weightHistory, entry];
     setWeightHistory(updated);
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           weightHistory: updated,
@@ -746,7 +818,7 @@ export default function App() {
     });
     setWeightHistory(updated);
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           weightHistory: updated,
@@ -762,7 +834,7 @@ export default function App() {
     const updated = weightHistory.filter(w => w.id !== id);
     setWeightHistory(updated);
 
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           weightHistory: updated,
@@ -778,7 +850,7 @@ export default function App() {
   const handleAddExercise = async (newEx: Exercise) => {
     const updated = [...exercises, newEx];
     setExercises(updated);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           exercises: updated
@@ -792,7 +864,7 @@ export default function App() {
   const handleUpdateExercise = async (updatedEx: Exercise) => {
     const updated = exercises.map(e => e.id === updatedEx.id ? updatedEx : e);
     setExercises(updated);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           exercises: updated
@@ -806,7 +878,7 @@ export default function App() {
   const handleDeleteExercise = async (id: string) => {
     const updated = exercises.filter(e => e.id !== id);
     setExercises(updated);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           exercises: updated
@@ -820,7 +892,7 @@ export default function App() {
   const handleAddStandardWorkout = async (newWorkout: StandardWorkout) => {
     const updated = [...standardWorkouts, newWorkout];
     setStandardWorkouts(updated);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           standardWorkouts: updated
@@ -834,7 +906,7 @@ export default function App() {
   const handleDeleteStandardWorkout = async (id: string) => {
     const updated = standardWorkouts.filter(w => w.id !== id);
     setStandardWorkouts(updated);
-    if (currentUser) {
+    if (currentUser && auth.currentUser) {
       try {
         await setDoc(doc(db, 'users', currentUser.uid), {
           standardWorkouts: updated
@@ -845,16 +917,73 @@ export default function App() {
     }
   };
 
+  // Treadmill Run Handlers
+  const handleSaveRun = async (newRun: RunLog) => {
+    const updated = [newRun, ...runs.filter(r => r.id !== newRun.id)];
+    setRuns(updated);
+    localStorage.setItem('hevyfit_runs', JSON.stringify(updated));
+
+    if (currentUser && auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          runs: updated
+        }, { merge: true });
+        await saveRunLog(currentUser.uid, newRun);
+      } catch (error) {
+        console.error('Error saving run session to Firebase:', error);
+      }
+    }
+  };
+
+  const handleDeleteRun = async (runId: string) => {
+    const updated = runs.filter(r => r.id !== runId);
+    setRuns(updated);
+    localStorage.setItem('hevyfit_runs', JSON.stringify(updated));
+
+    if (currentUser && auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          runs: updated
+        }, { merge: true });
+        await deleteRunLog(currentUser.uid, runId);
+      } catch (error) {
+        console.error('Error deleting run session from Firebase:', error);
+      }
+    }
+  };
+
+  const handleStartRunFromTaf = (workout: TafWorkoutDef, weekNumber: number) => {
+    setPendingTafRun({
+      type: workout.type,
+      durationMinutes: workout.suggestedDurationMinutes,
+      distanceKm: workout.suggestedDistanceKm || (workout.suggestedDurationMinutes > 0 ? Number((workout.suggestedDurationMinutes * (workout.suggestedSpeedMin / 60)).toFixed(2)) : 2.5),
+      inclinePct: 1.0,
+      rpe: workout.intensityLabel === 'Simulado' ? 9 : workout.intensityLabel === 'Leve' ? 5 : 7,
+      notes: `${workout.title} (Semana ${weekNumber}) • Aquecimento: ${workout.warmup} • Inclinação: 1% na esteira • Volta à calma: ${workout.cooldown}`,
+      intervals: workout.intervals,
+      tafWeekNumber: weekNumber
+    });
+    setActiveTab('running');
+  };
+
   // Logout handler
   const handleLogoutClick = async () => {
     try {
-      await logOut();
+      if (auth.currentUser) {
+        await logOut();
+      }
+    } catch (e) {
+      console.error('Falha ao deslogar:', e);
+    } finally {
       setCurrentUser(null);
       setIsGuest(false);
       localStorage.removeItem('hevyfit_is_guest');
+      localStorage.removeItem('hevyfit_local_user');
+      localStorage.removeItem('hevyfit_runs');
       // Reset to original mock memory loads
       setHistory(INITIAL_HISTORY);
       setWeightHistory(INITIAL_WEIGHT_HISTORY);
+      setRuns([]);
       setCurrentCycle({
         id: 'cycle_default',
         name: 'Block de Hipertrofia do Inverno',
@@ -867,8 +996,7 @@ export default function App() {
       });
       setRoutines(INITIAL_ROUTINES);
       setActiveWorkout(null);
-    } catch (e) {
-      console.error('Falha ao deslogar:', e);
+      setActiveTab('dashboard');
     }
   };
 
@@ -896,10 +1024,15 @@ export default function App() {
       <Login
         onLoginSuccess={(user) => {
           setCurrentUser(user);
+          setIsGuest(false);
+          setActiveTab('dashboard');
         }}
         onContinueOffline={() => {
           setIsGuest(true);
+          setCurrentUser(null);
           localStorage.setItem('hevyfit_is_guest', 'true');
+          localStorage.removeItem('hevyfit_local_user');
+          setActiveTab('dashboard');
         }}
       />
     );
@@ -941,6 +1074,8 @@ export default function App() {
           {[
             { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
             { id: 'train', label: TEXTS.train, icon: Dumbbell },
+            { id: 'running', label: TEXTS.running, icon: Timer },
+            { id: 'taf_plan', label: TEXTS.tafPlan, icon: Target },
             { id: 'history', label: TEXTS.history, icon: History },
             { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
             { id: 'weight', label: TEXTS.weight, icon: Scale },
@@ -1034,6 +1169,8 @@ export default function App() {
               {[
                 { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
                 { id: 'train', label: TEXTS.train, icon: Dumbbell },
+                { id: 'running', label: TEXTS.running, icon: Timer },
+                { id: 'taf_plan', label: TEXTS.tafPlan, icon: Target },
                 { id: 'history', label: TEXTS.history, icon: History },
                 { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
                 { id: 'weight', label: TEXTS.weight, icon: Scale },
@@ -1129,10 +1266,12 @@ export default function App() {
             weightHistory={weightHistory}
             currentCycle={currentCycle}
             routines={routines}
+            runs={runs}
             onNavigate={(tab) => setActiveTab(tab)}
             onStartWorkout={handleStartWorkout}
             onStartEmptyWorkout={() => handleStartWorkout('Treino Avulso')}
             onAddWeight={handleAddWeight}
+            onStartRunFromTaf={handleStartRunFromTaf}
           />
         )}
 
@@ -1145,7 +1284,7 @@ export default function App() {
             onFinishWorkout={handleFinishWorkout}
             onUpdateActiveWorkout={async (w) => {
               setActiveWorkout(w);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     activeWorkout: w
@@ -1163,7 +1302,7 @@ export default function App() {
             onAddRoutine={async (newRoutine) => {
               const updated = [...routines, newRoutine];
               setRoutines(updated);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     routines: updated
@@ -1176,7 +1315,7 @@ export default function App() {
             onUpdateRoutine={async (updatedRoutine) => {
               const updated = routines.map(r => r.id === updatedRoutine.id ? updatedRoutine : r);
               setRoutines(updated);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     routines: updated
@@ -1189,7 +1328,7 @@ export default function App() {
             onDeleteRoutine={async (id) => {
               const updated = routines.filter(r => r.id !== id);
               setRoutines(updated);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     routines: updated
@@ -1438,7 +1577,7 @@ export default function App() {
                               onClick={async () => {
                                 const updated = history.filter(w => w.id !== workout.id);
                                 setHistory(updated);
-                                if (currentUser) {
+                                if (currentUser && auth.currentUser) {
                                   try {
                                     await setDoc(doc(db, 'users', currentUser.uid), {
                                       workouts: updated,
@@ -1481,6 +1620,24 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'running' && (
+          <RunningTracker
+            runs={runs}
+            onSaveRun={handleSaveRun}
+            onDeleteRun={handleDeleteRun}
+            onNavigateToTafPlan={() => setActiveTab('taf_plan')}
+            initialPrefill={pendingTafRun}
+            onClearPrefill={() => setPendingTafRun(null)}
+          />
+        )}
+
+        {activeTab === 'taf_plan' && (
+          <TafPlanView
+            onStartRunFromTaf={handleStartRunFromTaf}
+            onNavigateToRuns={() => setActiveTab('running')}
+          />
+        )}
+
         {activeTab === 'exercises' && (
           <ExerciseProgression
             history={history}
@@ -1509,7 +1666,7 @@ export default function App() {
             currentCycle={currentCycle}
             onSaveCycle={async (cycle) => {
               setCurrentCycle(cycle);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     currentCycle: cycle
@@ -1521,7 +1678,7 @@ export default function App() {
             }}
             onRestartCycle={async () => {
               setCurrentCycle(null);
-              if (currentUser) {
+              if (currentUser && auth.currentUser) {
                 try {
                   await setDoc(doc(db, 'users', currentUser.uid), {
                     currentCycle: null

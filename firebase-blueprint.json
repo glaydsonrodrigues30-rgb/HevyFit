@@ -53,6 +53,27 @@
         "note": { "type": "string", "description": "Optional notes or morning/night annotations" }
       },
       "required": ["id", "weight", "timestamp"]
+    },
+    "RunLog": {
+      "title": "RunLog",
+      "description": "Logged treadmill running session including pace, intervals, and TAF goals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique run log ID" },
+        "date": { "type": "string", "description": "Run date string" },
+        "timestamp": { "type": "number", "description": "Epoch millisecond timestamp" },
+        "type": { "type": "string", "description": "Training type (A, B, C, Simulado 12 min, Teste)" },
+        "durationMinutes": { "type": "number", "description": "Duration in minutes" },
+        "distanceKm": { "type": "number", "description": "Total distance in kilometers" },
+        "inclinePct": { "type": "number", "description": "Treadmill incline percentage (usually 1%)" },
+        "rpe": { "type": "number", "description": "Rating of perceived exertion 1-10" },
+        "speedKmh": { "type": "number", "description": "Average speed in km/h" },
+        "paceFormatted": { "type": "string", "description": "Average pace formatted (e.g. 5:27/km)" },
+        "paceSecondsPerKm": { "type": "number", "description": "Pace in seconds per km" },
+        "notes": { "type": "string", "description": "Session observations and notes" },
+        "intervals": { "type": "array", "description": "List of intervals/shots for interval training" }
+      },
+      "required": ["id", "date", "timestamp", "type", "durationMinutes", "distanceKm", "inclinePct", "rpe"]
     }
   },
   "firestore": {
@@ -71,6 +92,10 @@
     "/users/{userId}/weights/{weightId}": {
       "schema": "WeightEntry",
       "description": "Bodyweight trends of the athlete"
+    },
+    "/users/{userId}/runs/{runId}": {
+      "schema": "RunLog",
+      "description": "Running logs and 12-minute TAF simulation sessions"
     }
   }
 }

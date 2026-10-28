@@ -13,19 +13,27 @@ import {
   Dumbbell, 
   History,
   CheckCircle2,
-  TrendingDown
+  TrendingDown,
+  Timer,
+  Target,
+  Award,
+  ArrowRight,
+  Flame
 } from 'lucide-react';
-import { WorkoutHistory, WeightEntry, TrainingCycle, getCycleCurrentWeek, WorkoutRoutine } from '../types';
+import { WorkoutHistory, WeightEntry, TrainingCycle, getCycleCurrentWeek, WorkoutRoutine, TafWorkoutDef, RunLog } from '../types';
+import { getTodayTafWorkout } from '../lib/tafPlanData';
 
 interface DashboardProps {
   history: WorkoutHistory[];
   weightHistory: WeightEntry[];
   currentCycle: TrainingCycle | null;
   routines: WorkoutRoutine[];
+  runs?: RunLog[];
   onNavigate: (tab: string) => void;
   onStartWorkout: (name: string, exercises?: WorkoutRoutine['exercises']) => void;
   onStartEmptyWorkout: () => void;
   onAddWeight: (weight: number, note: string) => void;
+  onStartRunFromTaf?: (workout: TafWorkoutDef, weekNumber: number) => void;
 }
 
 export default function Dashboard({
@@ -33,11 +41,16 @@ export default function Dashboard({
   weightHistory,
   currentCycle,
   routines,
+  runs = [],
   onNavigate,
   onStartWorkout,
   onStartEmptyWorkout,
   onAddWeight,
+  onStartRunFromTaf,
 }: DashboardProps) {
+  // TAF Run for today calculation
+  const todayTaf = getTodayTafWorkout();
+
   // Try to pre-select today's routine based on dayOfWeek, otherwise default to first routine
   const todayDayIndex = new Date().getDay();
   const todayRoutine = routines.find(r => r.dayOfWeek === todayDayIndex);
@@ -369,9 +382,114 @@ export default function Dashboard({
 
         </div>
 
-        {/* Right Column: Weight, Activity (4 Cols) */}
+        {/* Right Column: Running, Weight, Activity (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
           
+          {/* CARD CORRIDA DE HOJE (PLANO TAF) */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-lime-500/30 rounded-2xl p-5 space-y-4 shadow-lg transition relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Timer className="w-4 h-4 text-lime-400" />
+                <h3 className="font-bold text-white text-sm">Corrida de Hoje</h3>
+              </div>
+              <button
+                id="dashboard-btn-navigate-taf"
+                onClick={() => onNavigate('taf_plan')}
+                className="text-[10px] text-lime-400 hover:underline font-mono font-bold flex items-center gap-1"
+              >
+                <span>Plano TAF</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            {todayTaf.isRunDay && todayTaf.todayWorkout ? (
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-lime-400 font-bold uppercase bg-lime-500/10 border border-lime-500/20 px-2 py-0.5 rounded">
+                    {todayTaf.todayWorkout.dayName} • Sem {todayTaf.status.currentWeekNumber}
+                  </span>
+                  <span className="text-cyan-400 font-bold">
+                    Fase {todayTaf.status.phaseNumber}: {todayTaf.status.phaseName}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-tight">
+                    {todayTaf.todayWorkout.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                    {todayTaf.todayWorkout.description}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-900/60 p-2.5 rounded-lg border border-slate-850/80">
+                  <div>
+                    <span className="text-[9px] text-slate-500 block uppercase">Vel Esteira</span>
+                    <span className="font-bold text-white">{todayTaf.todayWorkout.suggestedSpeedRange}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 block uppercase">Ritmo Alvo</span>
+                    <span className="font-bold text-lime-400">{todayTaf.todayWorkout.targetPaceFormatted}</span>
+                  </div>
+                </div>
+
+                <div className="text-[10px] font-mono text-slate-400">
+                  <span>⏱️ {todayTaf.todayWorkout.suggestedDurationMinutes} min • 1% inclinação na esteira</span>
+                </div>
+
+                <button
+                  id="dashboard-btn-start-today-run"
+                  type="button"
+                  onClick={() => {
+                    if (onStartRunFromTaf && todayTaf.todayWorkout) {
+                      onStartRunFromTaf(todayTaf.todayWorkout, todayTaf.status.currentWeekNumber);
+                    } else {
+                      onNavigate('running');
+                    }
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 active:scale-98 transition"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Registrar Corrida de Hoje</span>
+                </button>
+              </div>
+            ) : (
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">🧘</span>
+                  <span className="text-xs font-bold text-slate-300">Sem corrida hoje</span>
+                </div>
+                
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Dia sem corrida na planilha do TAF. Foco no treino de musculação HevyFit ou em descanso/recuperação articular.
+                </p>
+
+                {todayTaf.nextWorkout && (
+                  <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-850 text-[11px] font-mono">
+                    <span className="text-slate-500 text-[10px] block uppercase">Próximo Treino Agendado:</span>
+                    <span className="text-white font-bold block truncate">{todayTaf.nextWorkout.workout.title}</span>
+                    <span className="text-lime-400 text-[10px]">{todayTaf.nextWorkout.dayText}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('running')}
+                  className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition"
+                >
+                  <Timer className="w-3.5 h-3.5 text-lime-400" />
+                  <span>Acessar Diário de Corridas</span>
+                </button>
+              </div>
+            )}
+
+            {/* Countdown mini badge */}
+            <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-slate-500 border-t border-slate-850/60">
+              <span>Prova TAF: 28/02/2027</span>
+              <span className="text-lime-400 font-bold">{todayTaf.status.daysUntilTaf} dias restantes</span>
+            </div>
+          </div>
+
           {/* SIMPLIFIED BODY WEIGHT (Peso + Variação) */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg">
             
