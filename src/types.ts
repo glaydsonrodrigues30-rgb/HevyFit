@@ -196,10 +196,10 @@ export function calculateRunStats(durationMinutes: number, distanceKm: number) {
 }
 
 export interface TafWorkoutDef {
-  key: 'A' | 'B' | 'C';
+  key: 'A' | 'B' | 'C' | 'Teste';
   title: string;
-  dayOfWeek: 1 | 3 | 6; // 1 = Monday, 3 = Wednesday, 6 = Saturday
-  dayName: 'Segunda-feira' | 'Quarta-feira' | 'Sábado';
+  dayOfWeek: number; // 1 = Monday, 3 = Wednesday, 6 = Saturday (ou dia do teste)
+  dayName: string; // 'Segunda-feira' | 'Quarta-feira' | 'Sábado' | 'Hoje'
   type: RunType;
   suggestedDurationMinutes: number;
   suggestedDistanceKm?: number;
@@ -221,8 +221,8 @@ export interface TafWeekDef {
   phaseNumber: 1 | 2 | 3 | 4;
   phaseName: 'Base' | 'Resistência' | 'Ritmo-alvo' | 'Específico e pico';
   phaseGoals: string;
-  startDate: string; // e.g. "2026-11-02"
-  endDate: string; // e.g. "2026-11-08"
+  startDate: string; // e.g. "16/11/2026"
+  endDate: string; // e.g. "22/11/2026"
   workouts: {
     A: TafWorkoutDef;
     B: TafWorkoutDef;

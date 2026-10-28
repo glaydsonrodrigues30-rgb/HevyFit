@@ -959,9 +959,9 @@ export default function App() {
       distanceKm: workout.suggestedDistanceKm || (workout.suggestedDurationMinutes > 0 ? Number((workout.suggestedDurationMinutes * (workout.suggestedSpeedMin / 60)).toFixed(2)) : 2.5),
       inclinePct: 1.0,
       rpe: workout.intensityLabel === 'Simulado' ? 9 : workout.intensityLabel === 'Leve' ? 5 : 7,
-      notes: `${workout.title} (Semana ${weekNumber}) • Aquecimento: ${workout.warmup} • Inclinação: 1% na esteira • Volta à calma: ${workout.cooldown}`,
+      notes: `${workout.title} (${weekNumber > 0 ? `Semana ${weekNumber}` : 'Teste Pré-Plano'}) • Aquecimento: ${workout.warmup} • Inclinação: 1% na esteira • Volta à calma: ${workout.cooldown}`,
       intervals: workout.intervals,
-      tafWeekNumber: weekNumber
+      tafWeekNumber: weekNumber > 0 ? weekNumber : undefined
     });
     setActiveTab('running');
   };

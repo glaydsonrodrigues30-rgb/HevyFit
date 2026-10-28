@@ -1,11 +1,45 @@
 import { TafWeekDef, TafWorkoutDef, RunType, RunInterval } from '../types';
 
-export const TAF_START_DATE_STR = '2026-11-02'; // Segunda-feira, 02/11/2026
-export const TAF_END_DATE_STR = '2027-02-28';   // Domingo, 28/02/2027
+// ============================================================================
+// CONSTANTES DE DATAS DO PLANO TAF (FÁCIL EDIÇÃO)
+// ============================================================================
+// 1. Data de início oficial do plano de 17 semanas (Semana 1):
+//    A esteira chega em 10/11/2026, início oficial na segunda-feira 16/11/2026.
+export const TAF_PLAN_START_DATE = '2026-11-16';
+
+// 2. Data oficial da prova do TAF (permite ajuste posterior independente):
+//    Por enquanto definido para 14/03/2027 (último dia do plano de 17 semanas).
+export const TAF_EXAM_DATE = '2027-03-14';
+
+// Aliases para compatibilidade
+export const TAF_START_DATE_STR = TAF_PLAN_START_DATE;
+export const TAF_END_DATE_STR = TAF_EXAM_DATE;
+
 export const TAF_TARGET_METERS = 2200;          // 2200 metros
 export const TAF_TARGET_MINUTES = 12;           // 12 minutos
 export const TAF_TARGET_SPEED_KMH = 11.0;       // 11 km/h
 export const TAF_TARGET_PACE_STR = '5:27/km';   // 5:27 min/km
+
+// Treino de teste diagnóstico para o período de pré-início (hoje até 15/11/2026)
+export const TAF_PRE_TEST_WORKOUT: TafWorkoutDef = {
+  key: 'Teste',
+  title: 'Teste Inicial de 12 Minutos (Esteira)',
+  dayOfWeek: 1,
+  dayName: 'Hoje',
+  type: 'Teste',
+  suggestedDurationMinutes: 12,
+  suggestedDistanceKm: 2.2,
+  suggestedSpeedRange: '11,0 km/h (5:27/km)',
+  suggestedSpeedMin: 11.0,
+  suggestedSpeedMax: 11.0,
+  targetPaceFormatted: '5:27/km',
+  intensityLabel: 'Simulado',
+  warmup: '5 min caminhando + 3 a 5 min de trote suave',
+  cooldown: '5 min de caminhada / volta à calma',
+  incline: '1% de inclinação na esteira',
+  description: 'Teste diagnóstico pré-plano de 12 minutos para calibrar seu ritmo e registrar sua distância base atual.',
+  isTafSimulation: true
+};
 
 export const SPEED_REFERENCE_TABLE = [
   { speed: 7.0, pace: '8:34/km', zone: 'Caminhada Rápida / Aquecimento', note: 'Z1 - Regenerativo' },
@@ -27,7 +61,7 @@ export const TAF_PHASES_INFO = [
   {
     phase: 1,
     name: 'Base Aeróbica',
-    weeks: 'Semanas 1 a 5 (02/11/2026 - 06/12/2026)',
+    weeks: 'Semanas 1 a 5 (16/11/2026 - 20/12/2026)',
     goal: 'Construção de resistência cardiovascular, adaptação musculoarticular e fortalecimento sem impacto excessivo.',
     intensity: 'Leve (7 a 8,5 km/h)',
     color: 'from-blue-500/20 to-cyan-500/10 border-blue-500/30 text-blue-400',
@@ -36,7 +70,7 @@ export const TAF_PHASES_INFO = [
   {
     phase: 2,
     name: 'Resistência & Variação',
-    weeks: 'Semanas 6 a 9 (07/12/2026 - 03/01/2027)',
+    weeks: 'Semanas 6 a 9 (21/12/2026 - 17/01/2027)',
     goal: 'Elevação do limiar anaeróbio, tolerância ao lactato com fartleks e ganho de capacidade com ritmo moderado.',
     intensity: 'Moderado (9 a 10 km/h) e Fartlek (11-12 km/h / 8 km/h)',
     color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-400',
@@ -45,7 +79,7 @@ export const TAF_PHASES_INFO = [
   {
     phase: 3,
     name: 'Ritmo-Alvo TAF',
-    weeks: 'Semanas 10 a 13 (04/01/2027 - 31/01/2027)',
+    weeks: 'Semanas 10 a 13 (18/01/2027 - 14/02/2027)',
     goal: 'Adaptação neuromuscular estrita aos 11 km/h (5:27/km) através de intervalos de 400m e 800m com recuperação ativa.',
     intensity: 'Ritmo-alvo (11 km/h = 5:27/km)',
     color: 'from-amber-500/20 to-yellow-500/10 border-amber-500/30 text-amber-400',
@@ -54,7 +88,7 @@ export const TAF_PHASES_INFO = [
   {
     phase: 4,
     name: 'Específico, Simulados e Pico',
-    weeks: 'Semanas 14 a 17 (01/02/2027 - 28/02/2027)',
+    weeks: 'Semanas 14 a 17 (15/02/2027 - 14/03/2027)',
     goal: 'Tiros longos de 1000m, simulados reais de 12 minutos atingindo ou superando os 2.200m e semana 17 de polimento (taper).',
     intensity: 'Ritmo-alvo & Simulados (11 a 12,8 km/h)',
     color: 'from-lime-500/20 to-emerald-500/10 border-lime-500/30 text-lime-400',
@@ -90,14 +124,17 @@ function makeIntervals(count: number, distanceM: number, speedKmh: number, restS
 // Generate the 17 weeks
 export function generate17WeeksTafPlan(): TafWeekDef[] {
   const weeks: TafWeekDef[] = [];
-  const startDate = new Date('2026-11-02T00:00:00');
+  const [sYear, sMonth, sDay] = TAF_PLAN_START_DATE.split('-').map(Number);
+  const startDate = new Date(sYear, sMonth - 1, sDay, 0, 0, 0);
+
+  const pad = (n: number) => n.toString().padStart(2, '0');
 
   for (let w = 1; w <= 17; w++) {
-    const weekStart = new Date(startDate.getTime() + (w - 1) * 7 * 24 * 3600 * 1000);
-    const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 3600 * 1000);
+    const weekStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + (w - 1) * 7);
+    const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
 
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const startStr = `${pad(weekStart.getDate())}/${pad(weekStart.getMonth() + 1)}/${weekStart.getFullYear()}`;
+    const endStr = `${pad(weekEnd.getDate())}/${pad(weekEnd.getMonth() + 1)}/${weekEnd.getFullYear()}`;
 
     let phaseNumber: 1 | 2 | 3 | 4 = 1;
     let phaseName: 'Base' | 'Resistência' | 'Ritmo-alvo' | 'Específico e pico' = 'Base';
@@ -556,41 +593,62 @@ export const TAF_WEEKS = generate17WeeksTafPlan();
  * Calculates current TAF status, current week (1-17), phase and countdown.
  */
 export function getTafCurrentStatus(currentDate = new Date()) {
-  const start = new Date(`${TAF_START_DATE_STR}T00:00:00`);
-  const end = new Date(`${TAF_END_DATE_STR}T23:59:59`);
-  const now = currentDate.getTime();
+  const [sYear, sMonth, sDay] = TAF_PLAN_START_DATE.split('-').map(Number);
+  const startDate = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
 
-  const isBeforeStart = now < start.getTime();
-  const isAfterEnd = now > end.getTime();
+  const [eYear, eMonth, eDay] = TAF_EXAM_DATE.split('-').map(Number);
+  const examDate = new Date(eYear, eMonth - 1, eDay, 0, 0, 0, 0);
+  const examEnd = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+  // Normaliza data de hoje para meia-noite local para cálculo exato de dias
+  const todayMidnight = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0, 0);
+  const now = todayMidnight.getTime();
+
+  const isBeforeStart = now < startDate.getTime();
+  const isAfterEnd = now > examEnd.getTime();
+
+  // Dias até o início do plano (Semana 1)
+  const msUntilStart = startDate.getTime() - now;
+  const daysUntilStart = Math.max(0, Math.ceil(msUntilStart / (1000 * 60 * 60 * 24)));
+
+  // Dias até a prova oficial do TAF
+  const msUntilExam = examDate.getTime() - now;
+  const daysUntilTaf = Math.max(0, Math.ceil(msUntilExam / (1000 * 60 * 60 * 24)));
 
   let currentWeekNumber = 1;
+  let progressPercent = 0;
+
   if (isBeforeStart) {
-    currentWeekNumber = 1;
+    currentWeekNumber = 0; // Antes de 16/11/2026: plano ainda não começou
+    progressPercent = 0;
   } else if (isAfterEnd) {
     currentWeekNumber = 17;
+    progressPercent = 100;
   } else {
-    const diffMs = now - start.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor((now - startDate.getTime()) / (1000 * 60 * 60 * 24));
     currentWeekNumber = Math.min(17, Math.max(1, Math.floor(diffDays / 7) + 1));
+    progressPercent = Math.min(100, Math.round((currentWeekNumber / 17) * 100));
   }
 
-  const currentWeek = TAF_WEEKS.find(w => w.weekNumber === currentWeekNumber) || TAF_WEEKS[0];
+  // Semana para exibição / fallback (Semana 1 se pré-início)
+  const displayWeekNumber = currentWeekNumber > 0 ? currentWeekNumber : 1;
+  const currentWeek = TAF_WEEKS.find(w => w.weekNumber === displayWeekNumber) || TAF_WEEKS[0];
 
-  // Days remaining until TAF (end date)
-  const msUntilEnd = end.getTime() - now;
-  const daysUntilTaf = Math.max(0, Math.ceil(msUntilEnd / (1000 * 60 * 60 * 24)));
-
-  // Days until start (if before start)
-  const msUntilStart = start.getTime() - now;
-  const daysUntilStart = Math.max(0, Math.ceil(msUntilStart / (1000 * 60 * 60 * 24)));
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const startDateFormatted = `${pad(startDate.getDate())}/${pad(startDate.getMonth() + 1)}/${startDate.getFullYear()}`;
+  const examDateFormatted = `${pad(examDate.getDate())}/${pad(examDate.getMonth() + 1)}/${examDate.getFullYear()}`;
 
   return {
     isBeforeStart,
     isAfterEnd,
-    currentWeekNumber,
+    currentWeekNumber, // 0 se antes de 16/11/2026, 1..17 durante o plano
+    displayWeekNumber,
     currentWeek,
+    progressPercent,
     daysUntilTaf,
     daysUntilStart,
+    startDateFormatted,
+    examDateFormatted,
     phaseNumber: currentWeek.phaseNumber,
     phaseName: currentWeek.phaseName,
     phaseGoals: currentWeek.phaseGoals,
@@ -606,6 +664,21 @@ export function getTodayTafWorkout(currentDate = new Date()) {
   const status = getTafCurrentStatus(currentDate);
   const dayOfWeek = currentDate.getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
   const week = status.currentWeek;
+
+  // Se estiver antes do início do plano, não há corrida oficial do plano hoje
+  if (status.isBeforeStart) {
+    return {
+      isRunDay: false,
+      isBeforeStart: true,
+      todayWorkout: null,
+      nextWorkout: {
+        workout: week.workouts.A,
+        dayText: `Segunda-feira (${status.startDateFormatted})`
+      },
+      dayOfWeek,
+      status
+    };
+  }
 
   let todayWorkout: TafWorkoutDef | null = null;
   let nextWorkout: { workout: TafWorkoutDef; dayText: string } | null = null;
@@ -637,6 +710,7 @@ export function getTodayTafWorkout(currentDate = new Date()) {
 
   return {
     isRunDay: todayWorkout !== null,
+    isBeforeStart: false,
     todayWorkout,
     nextWorkout,
     dayOfWeek,

@@ -21,7 +21,7 @@ import {
   Flame
 } from 'lucide-react';
 import { WorkoutHistory, WeightEntry, TrainingCycle, getCycleCurrentWeek, WorkoutRoutine, TafWorkoutDef, RunLog } from '../types';
-import { getTodayTafWorkout } from '../lib/tafPlanData';
+import { getTodayTafWorkout, TAF_PRE_TEST_WORKOUT } from '../lib/tafPlanData';
 
 interface DashboardProps {
   history: WorkoutHistory[];
@@ -402,7 +402,43 @@ export default function Dashboard({
               </button>
             </div>
 
-            {todayTaf.isRunDay && todayTaf.todayWorkout ? (
+            {todayTaf.status.isBeforeStart ? (
+              <div className="bg-slate-950 p-4 rounded-xl border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-amber-400 font-bold uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                    Aguardando Início do Plano
+                  </span>
+                  <span className="text-slate-400">
+                    Início: {todayTaf.status.startDateFormatted}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                  O plano começa em <strong className="text-lime-400">{todayTaf.status.startDateFormatted}</strong> (faltam {todayTaf.status.daysUntilStart} {todayTaf.status.daysUntilStart === 1 ? 'dia' : 'dias'}). Antes disso, faça o teste inicial de 12 min na esteira e o salto horizontal.
+                </p>
+
+                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-850 text-[11px] font-mono">
+                  <span className="text-slate-500 text-[10px] block uppercase">Chegada da esteira:</span>
+                  <span className="text-slate-300 font-medium block">10/11/2026 • Início oficial: {todayTaf.status.startDateFormatted}</span>
+                </div>
+
+                <button
+                  id="dashboard-btn-start-test-run"
+                  type="button"
+                  onClick={() => {
+                    if (onStartRunFromTaf) {
+                      onStartRunFromTaf(TAF_PRE_TEST_WORKOUT, 0);
+                    } else {
+                      onNavigate('running');
+                    }
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 active:scale-98 transition"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Registrar Corrida de Teste</span>
+                </button>
+              </div>
+            ) : todayTaf.isRunDay && todayTaf.todayWorkout ? (
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
                 <div className="flex items-center justify-between text-[10px] font-mono">
                   <span className="text-lime-400 font-bold uppercase bg-lime-500/10 border border-lime-500/20 px-2 py-0.5 rounded">
@@ -485,7 +521,7 @@ export default function Dashboard({
 
             {/* Countdown mini badge */}
             <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-slate-500 border-t border-slate-850/60">
-              <span>Prova TAF: 28/02/2027</span>
+              <span>Prova TAF: {todayTaf.status.examDateFormatted}</span>
               <span className="text-lime-400 font-bold">{todayTaf.status.daysUntilTaf} dias restantes</span>
             </div>
           </div>

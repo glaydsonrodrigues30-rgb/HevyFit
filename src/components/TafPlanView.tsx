@@ -27,6 +27,7 @@ import {
   TAF_TARGET_PACE_STR,
   TAF_START_DATE_STR,
   TAF_END_DATE_STR,
+  TAF_PRE_TEST_WORKOUT,
   getTafCurrentStatus
 } from '../lib/tafPlanData';
 
@@ -41,8 +42,10 @@ export default function TafPlanView({
 }: TafPlanViewProps) {
   const currentStatus = getTafCurrentStatus();
 
-  // Current selected week state (defaults to calculated current week)
-  const [selectedWeekNumber, setSelectedWeekNumber] = useState<number>(currentStatus.currentWeekNumber);
+  // Current selected week state (defaults to calculated current week or week 1 if pre-start)
+  const [selectedWeekNumber, setSelectedWeekNumber] = useState<number>(
+    currentStatus.currentWeekNumber > 0 ? currentStatus.currentWeekNumber : 1
+  );
 
   // Selected week object
   const selectedWeek = TAF_WEEKS.find(w => w.weekNumber === selectedWeekNumber) || TAF_WEEKS[0];
@@ -79,7 +82,7 @@ export default function TafPlanView({
               PROGRAMAÇÃO OFICIAL • 17 SEMANAS
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              02/11/2026 até 28/02/2027
+              {currentStatus.startDateFormatted} até {currentStatus.examDateFormatted}
             </span>
           </div>
           <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
@@ -141,7 +144,7 @@ export default function TafPlanView({
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
                 CONTAGEM REGRESSIVA ATÉ A PROVA
               </span>
-              <span className="text-[10px] text-lime-400 font-mono font-bold">28/02/2027</span>
+              <span className="text-[10px] text-lime-400 font-mono font-bold">{currentStatus.examDateFormatted}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-center">
@@ -154,25 +157,42 @@ export default function TafPlanView({
               </div>
 
               <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-3">
-                <span className="text-[10px] text-slate-500 font-mono block">SEMANA ATUAL</span>
-                <p className="text-3xl font-black text-white font-mono">
-                  {currentStatus.currentWeekNumber} <span className="text-xs text-slate-400 font-normal">/ 17</span>
-                </p>
-                <span className="text-[10px] text-cyan-400 font-mono font-bold">
-                  {currentStatus.phaseName}
+                <span className="text-[10px] text-slate-500 font-mono block">
+                  {currentStatus.isBeforeStart ? 'STATUS DO PLANO' : 'SEMANA ATUAL'}
                 </span>
+                {currentStatus.isBeforeStart ? (
+                  <>
+                    <p className="text-xl font-black text-amber-400 font-mono mt-0.5">
+                      Faltam {currentStatus.daysUntilStart} {currentStatus.daysUntilStart === 1 ? 'dia' : 'dias'}
+                    </p>
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                      Inicia {currentStatus.startDateFormatted}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-black text-white font-mono">
+                      {currentStatus.currentWeekNumber} <span className="text-xs text-slate-400 font-normal">/ 17</span>
+                    </p>
+                    <span className="text-[10px] text-cyan-400 font-mono font-bold">
+                      {currentStatus.phaseName}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="space-y-1.5 pt-1">
               <div className="flex justify-between text-[11px] font-mono text-slate-400">
                 <span>Progresso do Plano:</span>
-                <span className="text-white font-bold">{Math.round((currentStatus.currentWeekNumber / 17) * 100)}%</span>
+                <span className="text-white font-bold">
+                  {currentStatus.isBeforeStart ? '0% (Pré-início)' : `${currentStatus.progressPercent}%`}
+                </span>
               </div>
               <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
                 <div
                   className="bg-gradient-to-r from-lime-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.round((currentStatus.currentWeekNumber / 17) * 100)}%` }}
+                  style={{ width: `${currentStatus.progressPercent}%` }}
                 />
               </div>
             </div>
@@ -180,6 +200,43 @@ export default function TafPlanView({
 
         </div>
       </div>
+
+      {/* AVISO DE PRÉ-INÍCIO DO PLANO (Hoje até 15/11/2026) */}
+      {currentStatus.isBeforeStart && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                  PRÉ-TEMPORADA TAF
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  Chegada da esteira: 10/11/2026
+                </span>
+              </div>
+              <h3 className="text-sm md:text-base font-bold text-white">
+                O plano começa em {currentStatus.startDateFormatted} (faltam {currentStatus.daysUntilStart} {currentStatus.daysUntilStart === 1 ? 'dia' : 'dias'}).
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                Antes disso, faça o teste inicial de 12 min na esteira e o salto horizontal. Isso estabelecerá seu ponto de partida para comparar a evolução com a meta de 2.200 m (11 km/h, 5:27/km).
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="taf-btn-start-pre-test"
+            onClick={() => onStartRunFromTaf(TAF_PRE_TEST_WORKOUT, 0)}
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 transition shrink-0 select-none"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            <span>Registrar Corrida de Teste (12 min)</span>
+          </button>
+        </div>
+      )}
 
       {/* AS 4 FASES DO PLANO TAF (CARDS DE RESUMO) */}
       <div className="space-y-2">
@@ -192,7 +249,7 @@ export default function TafPlanView({
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {TAF_PHASES_INFO.map((p) => {
-            const isCurrentPhase = currentStatus.phaseNumber === p.phase;
+            const isCurrentPhase = !currentStatus.isBeforeStart && currentStatus.phaseNumber === p.phase;
             return (
               <div
                 key={p.phase}
@@ -264,7 +321,7 @@ export default function TafPlanView({
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-thin">
           {TAF_WEEKS.map((w) => {
             const isSelected = selectedWeekNumber === w.weekNumber;
-            const isCurrent = currentStatus.currentWeekNumber === w.weekNumber;
+            const isCurrent = !currentStatus.isBeforeStart && currentStatus.currentWeekNumber === w.weekNumber;
             return (
               <button
                 key={w.weekNumber}
@@ -280,7 +337,7 @@ export default function TafPlanView({
               >
                 <span>SEM {w.weekNumber}</span>
                 <span className={`text-[9px] font-normal ${isSelected ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
-                  {isCurrent ? '• Atual' : `Fase ${w.phaseNumber}`}
+                  {isCurrent ? '• Atual' : currentStatus.isBeforeStart && w.weekNumber === 1 ? 'Inicia 16/11' : `Fase ${w.phaseNumber}`}
                 </span>
               </button>
             );
