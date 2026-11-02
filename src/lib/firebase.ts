@@ -2,10 +2,12 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -17,13 +19,32 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
-// Google Auth Provider configured for redirect-based authentication
+// Google Auth Provider configured for authentication
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Google Redirect Auth helper (no popups)
+// Helper to detect if running inside an iframe (e.g. AI Studio preview)
+export const isInsideIframe = (): boolean => {
+  try {
+    return typeof window !== 'undefined' && window.self !== window.top;
+  } catch (e) {
+    return true;
+  }
+};
+
+// Password Reset helper
+export const resetPassword = async (email: string) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error) {
+    console.error('Firebase Password Reset Error:', error);
+    throw error;
+  }
+};
+
+// Google Redirect Auth helper (fallback)
 export const signInWithGoogleRedirect = async () => {
   try {
     await signInWithRedirect(auth, googleProvider);

@@ -27,7 +27,12 @@ import {
   signInWithEmail,
   signUpWithEmail
 } from '../lib/firebase';
-import { getRedirectResult, signInWithRedirect } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -45,6 +50,11 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [checkingRedirect, setCheckingRedirect] = useState(true);
   const [copiedDomain, setCopiedDomain] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
+  const [resetStatus, setResetStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const [errorDetails, setErrorDetails] = useState<{
     code?: string;
@@ -179,17 +189,126 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
     });
   };
 
-  // Google OAuth via Redirect (no popups)
-  const handleGoogleRedirect = async () => {
+  // Google OAuth via Popup (primary in top window) with Redirect fallback
+  const handleGoogleSignIn = async () => {
     setErrorDetails(null);
+    setResetStatus(null);
     setLoadingGoogle(true);
+
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+    // (2) If running inside an iframe (e.g. AI Studio preview), use redirect fallback directly
+    if (isInIframe) {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (error: any) {
+        console.error('Google Redirect Error in iframe:', error);
+        setLoadingGoogle(false);
+        handleAuthError(error, 'google');
+      }
+      return;
+    }
+
+    // (1) In main window (window.self === window.top), use signInWithPopup as primary
     try {
-      // Direct redirect without popup
-      await signInWithRedirect(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      // (5) On popup success, clean local cache and call onLoginSuccess
+      if (result && result.user) {
+        localStorage.removeItem('hevyfit_local_user');
+        localStorage.removeItem('hevyfit_is_guest');
+        onLoginSuccess(result.user);
+      }
     } catch (error: any) {
-      console.error('Failed to trigger Google redirect:', error);
+      const errorCode = error?.code || '';
+
+      // (3) If user closed the popup or cancelled, silently stop loading without error
+      if (
+        errorCode === 'auth/popup-closed-by-user' ||
+        errorCode === 'auth/cancelled-popup-request'
+      ) {
+        setLoadingGoogle(false);
+        return;
+      }
+
+      // (2) If popup blocked or unsupported, fallback to redirect
+      if (
+        errorCode === 'auth/popup-blocked' ||
+        errorCode === 'auth/operation-not-supported-in-this-environment' ||
+        errorCode === 'auth/web-storage-unsupported'
+      ) {
+        console.warn('Popup blocked or unsupported, falling back to redirect:', errorCode);
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError: any) {
+          console.error('Google Redirect fallback error:', redirectError);
+          setLoadingGoogle(false);
+          handleAuthError(redirectError, 'google');
+        }
+        return;
+      }
+
+      // Other errors (e.g. unauthorized-domain, invalid-credential, etc.)
+      console.error('Google Sign-In Error:', error);
       setLoadingGoogle(false);
       handleAuthError(error, 'google');
+    }
+  };
+
+  // Password reset helper via sendPasswordResetEmail
+  const handleForgotPassword = async () => {
+    setErrorDetails(null);
+    setResetStatus(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setResetStatus({
+        type: 'error',
+        message: 'Por favor, digite seu e-mail no campo acima para receber o link de redefinição.'
+      });
+      return;
+    }
+
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setResetStatus({
+        type: 'error',
+        message: 'Por favor, informe um endereço de e-mail válido.'
+      });
+      return;
+    }
+
+    setLoadingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setResetStatus({
+        type: 'success',
+        message: 'Enviamos um link de redefinição para o seu e-mail!'
+      });
+    } catch (error: any) {
+      console.warn('Password reset error:', error);
+      const errCode = error?.code || '';
+      if (errCode === 'auth/user-not-found') {
+        setResetStatus({
+          type: 'error',
+          message: 'Nenhum usuário cadastrado com este e-mail.'
+        });
+      } else if (errCode === 'auth/invalid-email') {
+        setResetStatus({
+          type: 'error',
+          message: 'E-mail inválido. Verifique o endereço digitado.'
+        });
+      } else if (errCode === 'auth/too-many-requests') {
+        setResetStatus({
+          type: 'error',
+          message: 'Muitas tentativas. Aguarde alguns instantes e tente novamente.'
+        });
+      } else {
+        setResetStatus({
+          type: 'error',
+          message: 'Não foi possível enviar o e-mail de redefinição. Verifique o e-mail ou tente novamente mais tarde.'
+        });
+      }
+    } finally {
+      setLoadingReset(false);
     }
   };
 
@@ -399,13 +518,13 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
           </div>
         )}
 
-        {/* PRIMARY GOOGLE SIGN-IN BUTTON (VIA REDIRECT - NO POPUP) */}
+        {/* PRIMARY GOOGLE SIGN-IN BUTTON (POPUP WITH REDIRECT FALLBACK) */}
         <div className="w-full space-y-3">
           <button
             id="btn-google-sign-in"
             type="button"
             disabled={loadingGoogle || loadingEmail || checkingRedirect}
-            onClick={handleGoogleRedirect}
+            onClick={handleGoogleSignIn}
             className={`w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl font-bold text-xs transition-all duration-200 border ${
               loadingGoogle
                 ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
@@ -415,7 +534,7 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
             {loadingGoogle ? (
               <>
                 <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                <span>Redirecionando para o Google...</span>
+                <span>Conectando com o Google...</span>
               </>
             ) : (
               <>
@@ -461,6 +580,7 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
             onClick={() => {
               setIsSignUp(false);
               setErrorDetails(null);
+              setResetStatus(null);
             }}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
               !isSignUp
@@ -477,6 +597,7 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
             onClick={() => {
               setIsSignUp(true);
               setErrorDetails(null);
+              setResetStatus(null);
             }}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
               isSignUp
@@ -503,7 +624,10 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (resetStatus) setResetStatus(null);
+                }}
                 placeholder="seu.email@exemplo.com"
                 required
                 className="w-full pl-10 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-400 transition"
@@ -537,7 +661,45 @@ export default function Login({ onLoginSuccess, onContinueOffline }: LoginProps)
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Link Esqueci minha senha (aba Entrar) */}
+            {!isSignUp && (
+              <div className="flex justify-end pt-1">
+                <button
+                  id="btn-forgot-password"
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loadingReset || loadingEmail || loadingGoogle}
+                  className="text-[11px] text-lime-400 hover:text-lime-300 underline font-medium transition cursor-pointer disabled:opacity-50"
+                >
+                  {loadingReset ? 'Enviando link...' : 'Esqueci minha senha'}
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Feedback de envio de redefinição de senha */}
+          <AnimatePresence>
+            {!isSignUp && resetStatus && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className={`p-2.5 rounded-xl text-xs border flex items-start gap-2 text-left ${
+                  resetStatus.type === 'success'
+                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
+                    : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+                }`}
+              >
+                {resetStatus.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                )}
+                <span className="text-[11px] leading-snug">{resetStatus.message}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Primary Form Submit Button */}
           <button
