@@ -91,8 +91,8 @@ export const TAF_PHASES_INFO = [
     weeks: 'Semanas 14 a 17 (15/02/2027 - 14/03/2027)',
     goal: 'Tiros longos de 1000m, simulados reais de 12 minutos atingindo ou superando os 2.200m e semana 17 de polimento (taper).',
     intensity: 'Ritmo-alvo & Simulados (11 a 12,8 km/h)',
-    color: 'from-lime-500/20 to-emerald-500/10 border-lime-500/30 text-lime-400',
-    accent: 'text-lime-400'
+    color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-400',
+    accent: 'text-emerald-400'
   }
 ];
 

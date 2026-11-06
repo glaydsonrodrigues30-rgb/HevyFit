@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { Calendar, Award, RefreshCcw, Save, ShieldAlert, Zap } from 'lucide-react';
+import { Activity, Save, RefreshCw, Check, AlertCircle, Calendar } from 'lucide-react';
 import { TrainingCycle, getCycleCurrentWeek } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface CycleSettingsProps {
   currentCycle: TrainingCycle | null;
@@ -19,10 +20,10 @@ export default function CycleSettings({
   onRestartCycle
 }: CycleSettingsProps) {
   // Local form state
-  const [name, setName] = useState(currentCycle?.name || 'Ciclo de Hipertrofia Básica');
+  const [name, setName] = useState(currentCycle?.name || 'Bloco de Treino');
   const [durationWeeks, setDurationWeeks] = useState(currentCycle?.durationWeeks || 8);
   const [goalWeight, setGoalWeight] = useState(currentCycle?.goalWeight ? String(currentCycle.goalWeight) : '');
-  const [targetFocus, setTargetFocus] = useState(currentCycle?.targetFocus || 'Força & Massa Magra');
+  const [targetFocus, setTargetFocus] = useState(currentCycle?.targetFocus || 'Hipertrofia & Força');
 
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
@@ -30,7 +31,7 @@ export default function CycleSettings({
   // Compute currentWeek and progress automatically
   const sDate = currentCycle?.startDate || Date.now();
   const currentWeek = getCycleCurrentWeek({ startDate: sDate, durationWeeks });
-  const progressPercent = Math.round((currentWeek / durationWeeks) * 100);
+  const progressPercent = Math.min(100, Math.max(0, Math.round((currentWeek / durationWeeks) * 100)));
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,191 +49,226 @@ export default function CycleSettings({
     };
     onSaveCycle(cycleData);
     setSaveSuccess(true);
-    setTimeout(() => {
-      setSaveSuccess(false);
-    }, 3000);
+    setTimeout(() => setSaveSuccess(false), 2500);
   };
 
   const handleStartBlank = () => {
     setName('Novo Bloco de Treino');
-    setDurationWeeks(6);
+    setDurationWeeks(8);
     setGoalWeight('');
-    setTargetFocus('Foco em Definição');
+    setTargetFocus('Hipertrofia & Força');
   };
 
   return (
-    <div id="cycle-settings-view" className="max-w-2xl mx-auto space-y-6 text-white">
-      
-      {/* Intro Header */}
-      <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-2">
-        <div className="flex items-center gap-2 text-lime-400">
-          <Zap className="w-5 h-5 fill-current" />
-          <h2 className="text-lg font-bold">Gerenciador de Ciclo (Periodização)</h2>
-        </div>
-        <p className="text-xs text-slate-450 leading-relaxed">
-          Periodizar o treino em ciclos de 4 a 12 semanas ajuda a planejar sobrecargas de volume, semanas de regeneração (deload) e manter o foco nos objetivos estratégicos (como ganho de peso, queima de gordura ou progressão pura de força).
+    <div id="cycle-settings-view" className="space-y-6 max-w-2xl mx-auto">
+
+      {/* HEADER */}
+      <div>
+        <h1 className="text-[28px] sm:text-[32px] font-semibold text-[#F2F3F5] tracking-tight">
+          Ciclo de treino
+        </h1>
+        <p className="text-[14px] text-[#9AA1AD] mt-0.5">
+          Periodize seus blocos de treino para controlar volume, força e deloads.
         </p>
       </div>
 
-      {/* Main Cycle configuration form */}
-      <div className="bg-slate-900 border border-slate-850 rounded-2xl p-6">
-        <form onSubmit={handleSave} className="space-y-4">
-          <h3 className="font-bold text-white text-sm border-b border-slate-850 pb-2">Configurar Ciclo Ativo</h3>
+      {/* 1. CARTÃO DE PROGRESSO DO CICLO SIMPLES */}
+      <section className="p-5 sm:p-6 rounded-[20px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] space-y-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-[10px] bg-[#7C6CFF]/15 text-[#7C6CFF] flex items-center justify-center">
+              <Activity className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="text-[12px] font-semibold text-[#7C6CFF] uppercase tracking-wide">
+              Ciclo ativo
+            </span>
+          </div>
 
-          {/* Name */}
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400 block font-semibold">Nome do Ciclo / Bloco</label>
+          <span className="text-[12px] font-medium text-[#9AA1AD]">
+            Semana {currentWeek} de {durationWeeks}
+          </span>
+        </div>
+
+        <div>
+          <h2 className="text-[20px] font-semibold text-[#F2F3F5] tracking-tight">
+            {name || 'Bloco sem nome'}
+          </h2>
+          <p className="text-[13px] text-[#9AA1AD] mt-0.5">
+            Foco: <span className="text-[#F2F3F5] font-medium">{targetFocus}</span>
+            {goalWeight ? ` • Meta de peso: ${goalWeight} kg` : ''}
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-1.5 pt-1">
+          <div className="w-full h-2.5 rounded-full bg-[#1C1F26] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[11px] text-[#6B7280]">
+            <span>Início: {new Date(sDate).toLocaleDateString('pt-BR')}</span>
+            <span className="tabular-nums">{progressPercent}% do bloco percorrido</span>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. FORMULÁRIO ORGANIZADO */}
+      <section className="p-6 rounded-[24px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] shadow-sm space-y-5">
+        <h3 className="text-[16px] font-semibold text-[#F2F3F5]">
+          Ajustar Parâmetros do Ciclo
+        </h3>
+
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="text-[12px] font-medium text-[#9AA1AD] block mb-1.5">
+              Nome do Bloco
+            </label>
             <input
-              id="input-cycle-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ex: Projeto Verão; Foco Pernas..."
-              className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-sm text-white focus:border-lime-500 outline-none"
+              placeholder="ex: Bloco de Força; Preparatório..."
+              className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[14px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF]"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Target Focus */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 block font-semibold">Foco Estratégico</label>
-              <input
-                id="input-cycle-focus"
-                type="text"
-                value={targetFocus}
-                onChange={(e) => setTargetFocus(e.target.value)}
-                placeholder="ex: Hipertrofia Braços; Queima de Gordura"
-                className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-sm text-white focus:border-lime-500 outline-none"
-              />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[12px] font-medium text-[#9AA1AD] block mb-1.5">
+                Duração (semanas)
+              </label>
+              <div className="flex items-center gap-1.5">
+                {[4, 6, 8, 12].map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setDurationWeeks(w)}
+                    className={`flex-1 min-h-[40px] rounded-[10px] text-[13px] font-medium transition cursor-pointer border ${
+                      durationWeeks === w
+                        ? 'bg-[#7C6CFF] border-[#7C6CFF] text-white'
+                        : 'bg-[#1C1F26] border-[rgba(255,255,255,0.06)] text-[#9AA1AD]'
+                    }`}
+                  >
+                    {w} sem
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Goal Weight */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 block font-semibold">Meta de Peso Corporal (Opcional)</label>
-              <div className="relative">
-                <input
-                  id="input-cycle-goal-weight"
-                  type="number"
-                  step="0.1"
-                  value={goalWeight}
-                  onChange={(e) => setGoalWeight(e.target.value)}
-                  placeholder="ex: 75.0"
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-sm text-white focus:border-lime-500 outline-none font-mono"
-                />
-                <span className="absolute right-3 top-2 text-xs text-slate-500 font-mono">kg</span>
-              </div>
+            <div>
+              <label className="text-[12px] font-medium text-[#9AA1AD] block mb-1.5">
+                Meta de peso (opcional, kg)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                value={goalWeight}
+                onChange={(e) => setGoalWeight(e.target.value)}
+                placeholder="ex: 78.5"
+                className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[14px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] tabular-nums"
+              />
             </div>
           </div>
 
-          {/* Duration configuration & Real-time automatic tracking */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            
-            {/* Duration Weeks */}
-            <div className="space-y-2 bg-slate-950 p-3.5 border border-slate-850 rounded-xl">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400">Duração do Bloco:</span>
-                <span className="text-white font-bold font-mono text-sm">{durationWeeks} semanas</span>
-              </div>
-              <input
-                id="range-cycle-duration"
-                type="range"
-                min="1"
-                max="24"
-                value={durationWeeks}
-                onChange={(e) => setDurationWeeks(Number(e.target.value))}
-                className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-lime-400"
-              />
-            </div>
-
-            {/* Auto weekly progress feedback */}
-            <div className="space-y-2 bg-slate-950 p-3.5 border border-slate-850 rounded-xl flex flex-col justify-between">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400">Acompanhamento Automático:</span>
-                <span className="text-lime-400 font-bold font-mono text-sm">Semana {currentWeek} de {durationWeeks}</span>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-                  <div 
-                    className="bg-lime-500 h-2 rounded-full transition-all duration-500" 
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-                  <span>Progresso Real: {progressPercent}%</span>
-                  <span>Início: {new Date(sDate).toLocaleDateString('pt-BR')}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Action Row */}
-          <div className="flex flex-col gap-4 pt-3">
-            {!showRestartConfirm ? (
-              <div className="flex flex-wrap gap-3">
+          <div>
+            <label className="text-[12px] font-medium text-[#9AA1AD] block mb-1.5">
+              Foco do Treinamento
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {['Hipertrofia & Força', 'Ganho de Volume', 'Definição / Corte', 'Resistência Geral', 'Preparação TAF'].map((f) => (
                 <button
-                  id="btn-save-cycle"
-                  type="submit"
-                  className="flex-1 min-w-[150px] flex items-center justify-center gap-2 bg-lime-500 hover:bg-lime-600 font-bold font-sans py-2.5 rounded-xl text-slate-950 text-xs transition shadow-lg shadow-lime-500/10"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Salvar Alterações</span>
-                </button>
-
-                <button
-                  id="btn-restart-cycle-prompt"
+                  key={f}
                   type="button"
-                  onClick={() => setShowRestartConfirm(true)}
-                  className="px-4 py-2 bg-slate-950 hover:bg-red-500/10 text-red-400 border border-slate-850 hover:border-red-500/25 rounded-xl text-xs font-semibold transition"
+                  onClick={() => setTargetFocus(f)}
+                  className={`p-2.5 rounded-[12px] text-[12px] font-medium transition cursor-pointer text-left border ${
+                    targetFocus === f
+                      ? 'bg-[#7C6CFF]/15 border-[#7C6CFF] text-[#7C6CFF]'
+                      : 'bg-[#1C1F26] border-[rgba(255,255,255,0.06)] text-[#9AA1AD]'
+                  }`}
                 >
-                  Excluir / Reiniciar
+                  {f}
                 </button>
-              </div>
-            ) : (
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-red-500/20 text-left space-y-3">
-                <div className="flex gap-2 text-red-400 items-start">
-                  <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-bold text-xs">Confirmar Reinicialização de Ciclo?</h5>
-                    <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">
-                      Isso redefinirá a contagem de semanas do seu ciclo de treinamento atual. Os dados salvos do histórico não serão excluídos.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowRestartConfirm(false)}
-                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRestartCycle();
-                      handleStartBlank();
-                      setShowRestartConfirm(false);
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white transition"
-                  >
-                    Sim, Reiniciar
-                  </button>
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
 
-          {saveSuccess && (
-            <div className="text-center p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs border border-emerald-500/15 animate-fade-in">
-              Configurações de ciclo salvas e atualizadas com sucesso! 🎯
-            </div>
-          )}
+          <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              id="btn-save-cycle"
+              type="submit"
+              className="w-full sm:flex-1 min-h-[48px] rounded-[14px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white text-[14px] font-semibold flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-md shadow-[#7C6CFF]/20"
+            >
+              {saveSuccess ? (
+                <>
+                  <Check className="w-5 h-5" />
+                  <span>Ciclo atualizado!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Salvar alterações</span>
+                </>
+              )}
+            </button>
 
+            <button
+              type="button"
+              onClick={() => setShowRestartConfirm(true)}
+              className="w-full sm:w-auto min-h-[48px] px-4 rounded-[14px] bg-[#1C1F26] hover:bg-[#252a35] text-[#FF6B6B] text-[13px] font-medium transition cursor-pointer"
+            >
+              Reiniciar ciclo
+            </button>
+          </div>
         </form>
-      </div>
+      </section>
+
+      {/* CONFIRM RESTART MODAL */}
+      <AnimatePresence>
+        {showRestartConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] p-5 space-y-4 shadow-2xl text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-[#FF6B6B]/15 text-[#FF6B6B] flex items-center justify-center mx-auto">
+                <RefreshCw className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-[17px] font-semibold text-[#F2F3F5]">Reiniciar ciclo atual?</h4>
+                <p className="text-[13px] text-[#9AA1AD] mt-1">
+                  A contagem de semanas começará novamente a partir de hoje. Nenhum treino do histórico será apagado.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRestartConfirm(false)}
+                  className="min-h-[44px] rounded-[12px] bg-[#1C1F26] hover:bg-[#222630] text-[#9AA1AD] text-[13px] font-medium transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRestartCycle();
+                    handleStartBlank();
+                    setShowRestartConfirm(false);
+                  }}
+                  className="min-h-[44px] rounded-[12px] bg-[#FF6B6B] hover:bg-[#ff5252] text-white text-[13px] font-semibold transition cursor-pointer"
+                >
+                  Reiniciar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

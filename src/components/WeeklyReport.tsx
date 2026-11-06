@@ -304,7 +304,7 @@ export default function WeeklyReport({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-850 print:border-slate-300">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black tracking-widest text-[#a3e635] bg-lime-500/10 border border-lime-500/25 uppercase px-2 py-0.5 rounded-sm print:bg-slate-100 print:text-black print:border-slate-300">
+            <span className="text-[10px] font-semibold tracking-wider text-[#7C6CFF] bg-[#7C6CFF]/15 border border-[#7C6CFF]/25 uppercase px-2.5 py-0.5 rounded-full print:bg-slate-100 print:text-black print:border-slate-300">
               MÉTRICAS DE CONSTÂNCIA E CARGA
             </span>
           </div>
@@ -447,7 +447,7 @@ export default function WeeklyReport({
                       <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       {week.label}
                       {week.cycleWeeksAnnotated.length > 0 && (
-                        <span className="ml-1 px-1.5 py-0.5 bg-lime-500/10 text-[#a3e635] rounded-sm text-[9px] border border-lime-500/10">
+                        <span className="ml-1 px-2 py-0.5 bg-[#7C6CFF]/15 text-[#7C6CFF] rounded-md text-[10px] border border-[#7C6CFF]/20 font-medium">
                           Semana do Bloco {week.cycleWeeksAnnotated.join(', ')}
                         </span>
                       )}

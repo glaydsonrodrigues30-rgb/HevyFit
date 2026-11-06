@@ -3,9 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { Scale, Plus, Calendar, Trash2, TrendingDown, RefreshCw, Edit2, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  Scale, 
+  Plus, 
+  Minus, 
+  Calendar, 
+  Trash2, 
+  Edit2, 
+  X, 
+  Check, 
+  TrendingDown, 
+  TrendingUp, 
+  Target 
+} from 'lucide-react';
 import { WeightEntry } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface WeightTrackerProps {
   weightHistory: WeightEntry[];
@@ -16,7 +29,7 @@ interface WeightTrackerProps {
 }
 
 export default function WeightTracker({
-  weightHistory,
+  weightHistory = [],
   onAddWeight,
   onUpdateWeight,
   onDeleteWeight,
@@ -30,215 +43,195 @@ export default function WeightTracker({
     return `${year}-${month}-${day}`;
   };
 
-  const timestampToDateString = (ts: number) => {
-    const d = new Date(ts);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const latestWeight = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : 75.0;
 
-  const [newWeight, setNewWeight] = useState('');
+  // New weight form state
+  const [newWeight, setNewWeight] = useState<number>(latestWeight);
   const [note, setNote] = useState('');
   const [customDate, setCustomDate] = useState(getTodayString());
+  const [showAdvancedFields, setShowAdvancedFields] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Edit logic states
+  // Edit modal state
   const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
   const [editWeight, setEditWeight] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
 
+  // Delete modal state
+  const [entryToDeleteId, setEntryToDeleteId] = useState<string | null>(null);
+
+  // Sorted entries chronologically
+  const sortedEntries = useMemo(() => {
+    return [...weightHistory].sort((a, b) => a.timestamp - b.timestamp);
+  }, [weightHistory]);
+
+  const currentWeight = sortedEntries.length > 0 ? sortedEntries[sortedEntries.length - 1].weight : null;
+  const initialWeight = sortedEntries.length > 0 ? sortedEntries[0].weight : null;
+  const totalChange = currentWeight && initialWeight ? Number((currentWeight - initialWeight).toFixed(1)) : 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const weightVal = parseFloat(newWeight);
-    if (!isNaN(weightVal) && weightVal > 0) {
-      const parsedDate = new Date(customDate + 'T12:00:00');
-      onAddWeight(weightVal, note, parsedDate.getTime());
-      setNewWeight('');
+    if (newWeight > 0) {
+      const parsedDate = new Date(`${customDate}T12:00:00`);
+      onAddWeight(Number(newWeight.toFixed(1)), note.trim(), parsedDate.getTime());
       setNote('');
       setCustomDate(getTodayString());
+      setShowAdvancedFields(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
     }
-  };
-
-  const handleEditClick = (entry: WeightEntry) => {
-    setEditingEntry(entry);
-    setEditWeight(entry.weight.toString());
-    setEditNote(entry.note || '');
-    setEditDate(timestampToDateString(entry.timestamp));
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
 
-    const weightVal = parseFloat(editWeight);
-    if (!isNaN(weightVal) && weightVal > 0 && editDate) {
-      const parsedDate = new Date(editDate + 'T12:00:00');
-      onUpdateWeight(editingEntry.id, weightVal, editNote, parsedDate.getTime());
+    const wVal = parseFloat(editWeight);
+    if (!isNaN(wVal) && wVal > 0 && editDate) {
+      const parsedDate = new Date(`${editDate}T12:00:00`);
+      onUpdateWeight(editingEntry.id, wVal, editNote.trim(), parsedDate.getTime());
       setEditingEntry(null);
     }
   };
 
-  // Stats
-  const latestWeight = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : null;
-  const initialWeight = weightHistory.length > 0 ? weightHistory[0].weight : null;
-  const weightChange = latestWeight && initialWeight ? latestWeight - initialWeight : 0;
-  
-  // Weights array
-  const weights = weightHistory.map(w => w.weight);
-  const minWeightOccurred = weights.length > 0 ? Math.min(...weights) : 0;
-  const maxWeightOccurred = weights.length > 0 ? Math.max(...weights) : 0;
-
-  // Render a lovely SVG trends chart of bodyweight
-  const renderTrendsSVG = () => {
-    if (weightHistory.length < 2) {
+  // Render Clean Smooth SVG Weight Chart
+  const renderCleanChart = () => {
+    if (sortedEntries.length < 2) {
       return (
-        <div className="h-44 flex flex-col items-center justify-center p-4 bg-slate-950 rounded-xl border border-slate-850 text-center">
-          <Scale className="w-8 h-8 text-rose-500/40 mb-2" />
-          <span className="text-xs text-slate-400 font-semibold">Logs ou Histórico de peso reduzido</span>
-          <span className="text-[10px] text-slate-500 mt-1 max-w-xs">Adicione pelo menos 2 registros de peso em dias diferentes para podermos estimar o gráfico de tendências de peso corporal.</span>
+        <div className="h-40 flex flex-col items-center justify-center p-4 bg-[#15171C] rounded-[20px] border border-[rgba(255,255,255,0.07)] text-center space-y-1">
+          <Scale className="w-8 h-8 text-[#6B7280]" />
+          <p className="text-[13px] font-medium text-[#F2F3F5]">Gráfico em construção</p>
+          <p className="text-[11px] text-[#9AA1AD]">Adicione pelo menos 2 registros de peso para visualizar a curva de evolução.</p>
         </div>
       );
     }
 
     const width = 500;
     const height = 180;
-    const paddingLeft = 40;
-    const paddingRight = 20;
-    const paddingTop = 25;
-    const paddingBottom = 30;
+    const padX = 40;
+    const padY = 24;
+    const chartW = width - padX * 2;
+    const chartH = height - padY * 2;
 
-    const chartWidth = width - paddingLeft - paddingRight;
-    const chartHeight = height - paddingTop - paddingBottom;
+    const weightsArr = sortedEntries.map(e => e.weight);
+    let minW = Math.min(...weightsArr) - 0.8;
+    let maxW = Math.max(...weightsArr) + 0.8;
+    if (goalWeight) {
+      minW = Math.min(minW, goalWeight - 0.8);
+      maxW = Math.max(maxW, goalWeight + 0.8);
+    }
+    const rangeW = maxW - minW || 1;
 
-    // We sort chronological entries
-    const sortedEntries = [...weightHistory].sort((a,b) => a.timestamp - b.timestamp);
+    const minT = sortedEntries[0].timestamp;
+    const maxT = sortedEntries[sortedEntries.length - 1].timestamp;
+    const rangeT = maxT - minT || 1;
 
-    const minWeight = Math.min(...weights) - 1;
-    const maxWeight = Math.max(...weights) + 1;
-    const rangeWeight = maxWeight - minWeight === 0 ? 1 : maxWeight - minWeight;
+    const coords = sortedEntries.map(e => ({
+      x: padX + ((e.timestamp - minT) / rangeT) * chartW,
+      y: padY + chartH - ((e.weight - minW) / rangeW) * chartH,
+      weight: e.weight,
+      dateStr: new Date(e.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    }));
 
-    const minTime = sortedEntries[0].timestamp;
-    const maxTime = sortedEntries[sortedEntries.length - 1].timestamp;
-    const rangeTime = maxTime - minTime === 0 ? 1 : maxTime - minTime;
-
-    // Plot coordinates
-    const coords = sortedEntries.map((entry) => {
-      const x = paddingLeft + ((entry.timestamp - minTime) / rangeTime) * chartWidth;
-      const y = paddingTop + chartHeight - ((entry.weight - minWeight) / rangeWeight) * chartHeight;
-      return {
-        x,
-        y,
-        weight: entry.weight,
-        dateStr: new Date(entry.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      };
-    });
-
-    let lineD = `M ${coords[0].x} ${coords[0].y}`;
-    for (let i = 1; i < coords.length; i++) {
-      lineD += ` L ${coords[i].x} ${coords[i].y}`;
+    // Smooth bezier curve path
+    let pathD = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const p0 = coords[i];
+      const p1 = coords[i + 1];
+      const mx = (p0.x + p1.x) / 2;
+      pathD += ` C ${mx} ${p0.y}, ${mx} ${p1.y}, ${p1.x} ${p1.y}`;
     }
 
-    const fillD = `${lineD} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
+    const areaD = `${pathD} L ${coords[coords.length - 1].x} ${height - padY} L ${coords[0].x} ${height - padY} Z`;
 
     return (
-      <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-2">
+      <div className="p-5 rounded-[20px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400">Curva de Variação de Peso Corporal (kg)</span>
+          <div>
+            <h3 className="text-[14px] font-semibold text-[#F2F3F5]">
+              Evolução de Peso Corporal
+            </h3>
+            <span className="text-[11px] text-[#9AA1AD]">
+              Variação: {totalChange > 0 ? `+${totalChange}` : totalChange} kg desde o primeiro registro
+            </span>
+          </div>
+
           {goalWeight && (
-            <span className="text-[10px] text-rose-450 font-semibold font-mono">
-              Meta de Peso: {goalWeight} kg
+            <span className="text-[11px] font-semibold text-[#7C6CFF] bg-[#7C6CFF]/15 px-2.5 py-1 rounded-full border border-[#7C6CFF]/30">
+              Meta: {goalWeight} kg
             </span>
           )}
         </div>
 
-        <div className="relative">
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
+        <div className="relative pt-2">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible select-none">
             <defs>
-              <linearGradient id="weight-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+              <linearGradient id="weight-smooth-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#7C6CFF" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#7C6CFF" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
-            {/* Grid line levels */}
-            {[0, 0.5, 1].map((val, idx) => {
-              const yVal = paddingTop + val * chartHeight;
-              const lvlWeight = Math.round(maxWeight - val * rangeWeight);
-              return (
-                <g key={idx}>
-                  <line
-                    x1={paddingLeft}
-                    y1={yVal}
-                    x2={width - paddingRight}
-                    y2={yVal}
-                    className="stroke-slate-900"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
-                  />
-                  <text
-                    x={paddingLeft - 8}
-                    y={yVal + 3}
-                    className="fill-slate-500 text-[10px] font-mono text-right"
-                    textAnchor="end"
-                  >
-                    {lvlWeight}kg
-                  </text>
-                </g>
-              );
-            })}
+            {/* Subtle soft boundary guides (no heavy dark grid) */}
+            <line
+              x1={padX}
+              y1={padY}
+              x2={width - padX}
+              y2={padY}
+              stroke="rgba(255,255,255,0.05)"
+              strokeDasharray="4 4"
+            />
+            <text x={padX - 8} y={padY + 4} textAnchor="end" className="fill-[#6B7280] text-[9px] font-mono">
+              {maxW.toFixed(0)}kg
+            </text>
 
-            {/* Area */}
-            <path d={fillD} fill="url(#weight-grad)" />
+            <line
+              x1={padX}
+              y1={height - padY}
+              x2={width - padX}
+              y2={height - padY}
+              stroke="rgba(255,255,255,0.05)"
+              strokeDasharray="4 4"
+            />
+            <text x={padX - 8} y={height - padY + 4} textAnchor="end" className="fill-[#6B7280] text-[9px] font-mono">
+              {minW.toFixed(0)}kg
+            </text>
 
-            {/* Main Weight trend path Line */}
-            <path d={lineD} fill="none" className="stroke-rose-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-            {/* Target weight line if exists */}
-            {goalWeight && goalWeight >= minWeight && goalWeight <= maxWeight && (
+            {/* Target Weight dashed line if set */}
+            {goalWeight && goalWeight >= minW && goalWeight <= maxW && (
               <line
-                x1={paddingLeft}
-                y1={paddingTop + chartHeight - ((goalWeight - minWeight) / rangeWeight) * chartHeight}
-                x2={width - paddingRight}
-                y2={paddingTop + chartHeight - ((goalWeight - minWeight) / rangeWeight) * chartHeight}
-                className="stroke-amber-500/40"
-                strokeWidth="1"
-                strokeDasharray="2 2"
+                x1={padX}
+                y1={padY + chartH - ((goalWeight - minW) / rangeW) * chartH}
+                x2={width - padX}
+                y2={padY + chartH - ((goalWeight - minW) / rangeW) * chartH}
+                stroke="#7C6CFF"
+                strokeWidth="1.2"
+                strokeDasharray="3 3"
+                opacity="0.6"
               />
             )}
 
-            {/* Circle markers */}
-            {coords.map((c, idx) => (
-              <g key={idx}>
-                {/* Horizontal date labels */}
-                {idx === 0 || idx === coords.length - 1 || idx === Math.floor(coords.length / 2) ? (
-                  <text
-                    x={c.x}
-                    y={height - paddingBottom + 16}
-                    className="fill-slate-500 text-[9px] font-mono"
-                    textAnchor="middle"
-                  >
+            {/* Gradient fill below curve */}
+            <path d={areaD} fill="url(#weight-smooth-grad)" />
+
+            {/* Smooth main line */}
+            <path d={pathD} fill="none" stroke="#7C6CFF" strokeWidth="2.5" strokeLinecap="round" />
+
+            {/* Points */}
+            {coords.map((c, i) => (
+              <g key={i}>
+                <circle cx={c.x} cy={c.y} r="3.5" fill="#7C6CFF" stroke="#15171C" strokeWidth="1.5" />
+                {(i === 0 || i === coords.length - 1 || coords.length <= 6) && (
+                  <text x={c.x} y={c.y - 7} textAnchor="middle" className="fill-[#F2F3F5] text-[9px] font-mono font-medium">
+                    {c.weight}
+                  </text>
+                )}
+                {(i === 0 || i === coords.length - 1) && (
+                  <text x={c.x} y={height - padY + 14} textAnchor="middle" className="fill-[#6B7280] text-[9px] font-mono">
                     {c.dateStr}
                   </text>
-                ) : null}
-
-                {/* Weights on markers */}
-                <circle
-                  cx={c.x}
-                  cy={c.y}
-                  r="3.5"
-                  className="fill-rose-500 stroke-slate-950"
-                  strokeWidth="1.5"
-                />
-
-                <text
-                  x={c.x}
-                  y={c.y - 8}
-                  className="fill-slate-400 text-[9px] font-mono"
-                  textAnchor="middle"
-                >
-                  {c.weight}
-                </text>
+                )}
               </g>
             ))}
           </svg>
@@ -248,258 +241,347 @@ export default function WeightTracker({
   };
 
   return (
-    <div id="weight-tracker-view" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      
-      {/* Sidebar logger & stats (5 cols) */}
-      <div className="lg:col-span-4 space-y-6">
-        
-        {/* Logger widgets */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Scale className="w-4 h-4 text-rose-450" />
-              <h3 className="font-bold text-white text-base">Registrar Peso</h3>
+    <div id="weight-tracker-view" className="space-y-6">
+
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[28px] sm:text-[32px] font-semibold text-[#F2F3F5] tracking-tight">
+            Peso corporal
+          </h1>
+          <p className="text-[14px] text-[#9AA1AD] mt-0.5">
+            Registre suas pesagens e acompanhe a oscilação na curva.
+          </p>
+        </div>
+
+        {currentWeight && (
+          <div className="p-3 px-4 rounded-[16px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] flex items-center gap-3 self-start sm:self-auto">
+            <div>
+              <span className="text-[11px] text-[#6B7280] font-medium block">Peso atual</span>
+              <p className="text-[20px] font-semibold text-[#F2F3F5] tabular-nums leading-tight">
+                {currentWeight} <span className="text-[13px] font-normal text-[#9AA1AD]">kg</span>
+              </p>
             </div>
           </div>
+        )}
+      </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Medição de Peso (kg)</label>
-              <div className="relative">
-                <input
-                  id="log-input-weight"
-                  type="number"
-                  step="0.1"
-                  min="30"
-                  max="250"
-                  value={newWeight}
-                  onChange={(e) => setNewWeight(e.target.value)}
-                  placeholder="ex: 78.6"
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
-                  required
-                />
-                <span className="absolute right-3 top-2 text-xs text-slate-500 font-mono">kg</span>
-              </div>
-            </div>
+      {/* 1. CAMPO GRANDE PARA REGISTRAR PESO */}
+      <section className="p-6 rounded-[24px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] shadow-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-[10px] bg-[#7C6CFF]/15 text-[#7C6CFF] flex items-center justify-center shrink-0">
+            <Scale className="w-4 h-4 stroke-[2.2]" />
+          </div>
+          <span className="text-[13px] font-semibold text-[#F2F3F5]">
+            Nova Pesagem
+          </span>
+        </div>
 
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Nota ou Contexto (opcional)</label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Big Weight Stepper Input */}
+          <div className="p-4 rounded-[20px] bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setNewWeight(prev => Math.max(30, Number((prev - 0.2).toFixed(1))))}
+              className="w-12 h-12 rounded-[14px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] text-[#F2F3F5] flex items-center justify-center hover:bg-[#222630] transition cursor-pointer shrink-0"
+            >
+              <Minus className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-baseline justify-center gap-1.5 flex-1 text-center">
               <input
-                id="log-input-weight-note"
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="ex: Peso de manhã em jejum"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">Data de Registro</label>
-              <input
-                id="log-input-weight-date"
-                type="date"
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
+                id="big-weight-input"
+                type="number"
+                step="0.1"
+                min="30"
+                max="250"
+                value={newWeight || ''}
+                onChange={(e) => setNewWeight(parseFloat(e.target.value) || 0)}
+                className="w-32 text-center text-[36px] sm:text-[40px] font-semibold text-[#F2F3F5] bg-transparent outline-none tabular-nums"
                 required
               />
+              <span className="text-[18px] font-medium text-[#9AA1AD]">kg</span>
             </div>
 
             <button
-              id="btn-save-weight-tracker"
-              type="submit"
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 font-bold text-white text-xs transition shadow-lg shadow-rose-500/15"
+              type="button"
+              onClick={() => setNewWeight(prev => Number((prev + 0.2).toFixed(1)))}
+              className="w-12 h-12 rounded-[14px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] text-[#F2F3F5] flex items-center justify-center hover:bg-[#222630] transition cursor-pointer shrink-0"
             >
-              Salvar Peso no Diário
+              <Plus className="w-5 h-5" />
             </button>
-          </form>
-        </div>
+          </div>
 
-        {/* Quick stats summarizing progression */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
-          <h4 className="font-bold text-white text-sm">Resumo da Balança</h4>
-          
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-850">
-              <span className="text-slate-400">Peso Inicial:</span>
-              <span className="font-mono text-white font-bold">{initialWeight ? `${initialWeight.toFixed(1)} kg` : '--'}</span>
-            </div>
+          {/* Toggle advanced fields (date and note) */}
+          <div className="flex items-center justify-between text-[12px]">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFields(!showAdvancedFields)}
+              className="text-[#9AA1AD] hover:text-[#F2F3F5] transition cursor-pointer"
+            >
+              {showAdvancedFields ? 'Ocultar data e notas' : '+ Alterar data ou adicionar notas'}
+            </button>
 
-            <div className="flex justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-850">
-              <span className="text-slate-400">Peso Atual:</span>
-              <span className="font-mono text-white font-bold">{latestWeight ? `${latestWeight.toFixed(1)} kg` : '--'}</span>
-            </div>
+            <span className="text-[#6B7280]">
+              Data: {new Date(customDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            </span>
+          </div>
 
-            <div className="flex justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-850">
-              <span className="text-slate-400">Variação Líquida:</span>
-              <span className={`font-mono font-bold ${weightChange < 0 ? 'text-emerald-400' : weightChange > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
-                {weightChange > 0 ? `+${weightChange.toFixed(1)}` : `${weightChange.toFixed(1)}`} kg
-              </span>
-            </div>
-
-            {goalWeight ? (
-              <div className="flex justify-between p-2.5 bg-slate-950 rounded-xl border border-slate-850">
-                <span className="text-slate-400">Meta do Ciclo:</span>
-                <span className="font-mono text-lime-400 font-bold">{goalWeight.toFixed(1)} kg</span>
+          {showAdvancedFields && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-[11px] font-medium text-[#9AA1AD] block mb-1">Data</label>
+                <input
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[13px] text-[#F2F3F5] outline-none"
+                />
               </div>
-            ) : null}
-          </div>
+              <div>
+                <label className="text-[11px] font-medium text-[#9AA1AD] block mb-1">Nota</label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="ex: Em jejum ao acordar"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[13px] text-[#F2F3F5] outline-none"
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            id="btn-submit-weight"
+            type="submit"
+            className="w-full min-h-[48px] rounded-[14px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-md shadow-[#7C6CFF]/20"
+          >
+            {saveSuccess ? (
+              <>
+                <Check className="w-5 h-5" />
+                <span>Peso registrado!</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 stroke-[2.2]" />
+                <span>Salvar peso ({newWeight} kg)</span>
+              </>
+            )}
+          </button>
+        </form>
+      </section>
+
+      {/* 2. GRÁFICO LIMPO (LINHA SUAVE, SEM GRADE PESADA) */}
+      {renderCleanChart()}
+
+      {/* 3. LISTA DE PESAGENS ABAIXO */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[16px] font-semibold text-[#F2F3F5]">
+            Histórico de Pesagens
+          </h3>
+          <span className="text-[12px] text-[#6B7280] tabular-nums">
+            {weightHistory.length} registros
+          </span>
         </div>
 
-      </div>
-
-      {/* Main timeline graph & entries list (8 cols) */}
-      <div className="lg:col-span-8 space-y-6">
-        
-        {/* Trend line widget */}
-        {renderTrendsSVG()}
-
-        {/* Logs weight list history */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-            <h4 className="font-bold text-white text-sm">Diário Completo de Pesagem</h4>
-            <span className="text-xs text-slate-500 font-mono">{weightHistory.length} registros</span>
+        {weightHistory.length === 0 ? (
+          <div className="p-8 rounded-[20px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] text-center space-y-2">
+            <Scale className="w-8 h-8 text-[#6B7280] mx-auto" />
+            <p className="text-[14px] font-medium text-[#F2F3F5]">Nenhum registro ainda</p>
+            <p className="text-[12px] text-[#9AA1AD]">Use o campo acima para salvar seu peso atual.</p>
           </div>
+        ) : (
+          <div className="space-y-2">
+            {[...weightHistory].reverse().map((entry, idx, arr) => {
+              const prev = arr[idx + 1];
+              const diff = prev ? Number((entry.weight - prev.weight).toFixed(1)) : null;
 
-          {weightHistory.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500 italic bg-slate-950 rounded-xl">
-              Nenhum registro de peso inserido na conta. Use o formulário à esquerda para adicionar primeiro.
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-              {[...weightHistory].reverse().map((entry) => (
+              return (
                 <div
                   key={entry.id}
-                  className="bg-slate-950 border border-slate-850 p-3 rounded-xl flex items-center justify-between hover:bg-slate-900/40 transition text-xs"
+                  className="p-3.5 sm:p-4 rounded-[16px] bg-[#15171C] border border-[rgba(255,255,255,0.06)] flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-450 shrink-0 font-bold font-mono">
-                      ⚖️
+                    <div className="w-9 h-9 rounded-[10px] bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] flex items-center justify-center text-[#7C6CFF] shrink-0">
+                      <Scale className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="font-bold text-white block text-sm font-mono">{entry.weight?.toFixed(1)} kg</span>
-                      <span className="text-slate-500 text-[10px] block mt-0.5">
-                        {entry.note || 'Sem observações'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[16px] font-semibold text-[#F2F3F5] tabular-nums">
+                          {entry.weight} kg
+                        </span>
+                        {diff !== null && (
+                          <span
+                            className={`text-[11px] font-medium tabular-nums ${
+                              diff > 0 ? 'text-[#F5B84B]' : diff < 0 ? 'text-[#4ADE80]' : 'text-[#6B7280]'
+                            }`}
+                          >
+                            {diff > 0 ? `+${diff}` : diff} kg
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-[#9AA1AD]">
+                        {new Date(entry.timestamp).toLocaleDateString('pt-BR', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                        {entry.note && ` • "${entry.note}"`}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{new Date(entry.timestamp).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
-                    </div>
-
+                  <div className="flex items-center gap-1">
                     <button
-                      id={`btn-edit-weight-${entry.id}`}
-                      onClick={() => handleEditClick(entry)}
-                      className="text-slate-600 hover:text-amber-400 p-1.5 hover:bg-slate-900 rounded transition"
-                      title="Editar medição"
+                      type="button"
+                      onClick={() => {
+                        setEditingEntry(entry);
+                        setEditWeight(String(entry.weight));
+                        setEditNote(entry.note || '');
+                        const d = new Date(entry.timestamp);
+                        setEditDate(d.toISOString().split('T')[0]);
+                      }}
+                      className="p-2 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
+                      title="Editar pesagem"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
-
                     <button
-                      id={`btn-delete-weight-${entry.id}`}
-                      onClick={() => onDeleteWeight(entry.id)}
-                      className="text-slate-600 hover:text-red-400 p-1.5 hover:bg-slate-900 rounded transition"
-                      title="Excluir medição"
+                      type="button"
+                      onClick={() => setEntryToDeleteId(entry.id)}
+                      className="p-2 text-[#6B7280] hover:text-[#FF6B6B] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
+                      title="Excluir pesagem"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-      </div>
-
-      {editingEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-          <div
-            id="edit-weight-modal"
-            className="bg-slate-900 border border-slate-850 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-white space-y-4 font-sans animate-none"
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Scale className="w-5 h-5 text-amber-500" />
-                <h3 className="font-bold text-white text-base">Editar Registro de Peso</h3>
+      {/* EDIT MODAL */}
+      <AnimatePresence>
+        {editingEntry && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] p-5 space-y-4 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] pb-3">
+                <h4 className="text-[16px] font-semibold text-[#F2F3F5]">Editar Pesagem</h4>
+                <button
+                  type="button"
+                  onClick={() => setEditingEntry(null)}
+                  className="p-1 text-[#9AA1AD] hover:text-[#F2F3F5]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                id="btn-close-edit-weight"
-                onClick={() => setEditingEntry(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition animate-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Medição de Peso (kg)</label>
-                <div className="relative">
+              <form onSubmit={handleEditSubmit} className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-medium text-[#9AA1AD] block mb-1">Peso (kg)</label>
                   <input
-                    id="edit-input-weight"
                     type="number"
                     step="0.1"
                     min="30"
                     max="250"
                     value={editWeight}
                     onChange={(e) => setEditWeight(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[14px] text-[#F2F3F5] outline-none"
                     required
                   />
-                  <span className="absolute right-3 top-2 text-xs text-slate-500 font-mono">kg</span>
                 </div>
-              </div>
 
+                <div>
+                  <label className="text-[11px] font-medium text-[#9AA1AD] block mb-1">Data</label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[14px] text-[#F2F3F5] outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-[#9AA1AD] block mb-1">Nota</label>
+                  <input
+                    type="text"
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[14px] text-[#F2F3F5] outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingEntry(null)}
+                    className="min-h-[44px] rounded-[12px] bg-[#1C1F26] hover:bg-[#252a35] text-[#9AA1AD] text-[13px] font-medium transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="min-h-[44px] rounded-[12px] bg-[#7C6CFF] hover:bg-[#8E80FF] text-white text-[13px] font-semibold transition cursor-pointer"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* IN-APP DELETE MODAL */}
+      <AnimatePresence>
+        {entryToDeleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] p-5 space-y-4 shadow-2xl text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-[#FF6B6B]/15 text-[#FF6B6B] flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Nota ou Contexto (opcional)</label>
-                <input
-                  id="edit-input-weight-note"
-                  type="text"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
-                />
+                <h4 className="text-[16px] font-semibold text-[#F2F3F5]">Excluir pesagem?</h4>
+                <p className="text-[13px] text-[#9AA1AD] mt-1">Este registro será removido do seu histórico de peso.</p>
               </div>
 
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Data de Registro</label>
-                <input
-                  id="edit-input-weight-date"
-                  type="date"
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl py-2 px-3 text-white text-sm outline-none font-mono"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-3 border-t border-slate-850">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
-                  id="btn-cancel-edit-weight"
                   type="button"
-                  onClick={() => setEditingEntry(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 hover:text-white transition font-semibold text-center"
+                  onClick={() => setEntryToDeleteId(null)}
+                  className="min-h-[44px] rounded-[12px] bg-[#1C1F26] hover:bg-[#252a35] text-[#9AA1AD] text-[13px] font-medium transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
-                  id="btn-submit-edit-weight"
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 font-bold text-white transition text-center"
+                  type="button"
+                  onClick={() => {
+                    onDeleteWeight(entryToDeleteId);
+                    setEntryToDeleteId(null);
+                  }}
+                  className="min-h-[44px] rounded-[12px] bg-[#FF6B6B] hover:bg-[#ff5252] text-white text-[13px] font-semibold transition cursor-pointer"
                 >
-                  Confirmar Alterações
+                  Excluir
                 </button>
               </div>
-            </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
     </div>
   );

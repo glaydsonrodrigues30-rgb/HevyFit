@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Target,
   Award,
   Calendar,
   Clock,
-  Zap,
   Play,
   CheckCircle2,
-  AlertCircle,
-  Flame,
+  ChevronDown,
+  ChevronUp,
   ChevronRight,
-  ChevronLeft,
-  Info,
-  ArrowRight,
-  TrendingUp,
+  Sparkles,
+  Timer,
   Layers,
-  Sparkles
+  ArrowRight
 } from 'lucide-react';
-import { TafWeekDef, TafWorkoutDef } from '../types';
+import { TafWeekDef, TafWorkoutDef, RunLog } from '../types';
 import {
   TAF_WEEKS,
   TAF_PHASES_INFO,
@@ -25,590 +22,387 @@ import {
   TAF_TARGET_MINUTES,
   TAF_TARGET_SPEED_KMH,
   TAF_TARGET_PACE_STR,
-  TAF_START_DATE_STR,
-  TAF_END_DATE_STR,
   TAF_PRE_TEST_WORKOUT,
   getTafCurrentStatus
 } from '../lib/tafPlanData';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface TafPlanViewProps {
+  runs?: RunLog[];
   onStartRunFromTaf: (workout: TafWorkoutDef, weekNumber: number) => void;
   onNavigateToRuns: () => void;
 }
 
 export default function TafPlanView({
+  runs = [],
   onStartRunFromTaf,
   onNavigateToRuns
 }: TafPlanViewProps) {
-  const currentStatus = getTafCurrentStatus();
+  const currentStatus = useMemo(() => getTafCurrentStatus(), []);
 
-  // Current selected week state (defaults to calculated current week or week 1 if pre-start)
-  const [selectedWeekNumber, setSelectedWeekNumber] = useState<number>(
-    currentStatus.currentWeekNumber > 0 ? currentStatus.currentWeekNumber : 1
-  );
+  // Today day of week: 0 = Dom, 1 = Seg, ..., 6 = Sab
+  const todayDay = useMemo(() => new Date().getDay(), []);
 
-  // Selected week object
-  const selectedWeek = TAF_WEEKS.find(w => w.weekNumber === selectedWeekNumber) || TAF_WEEKS[0];
-  const selectedPhaseInfo = TAF_PHASES_INFO[selectedWeek.phaseNumber - 1];
+  // Expanded workouts in 'Esta semana'
+  const [expandedWorkoutKey, setExpandedWorkoutKey] = useState<string | null>(null);
 
-  // Intensity color badges helper
+  // Expanded Phase in 'Todas as semanas' (null = all collapsed, or number 1..4)
+  const [expandedPhaseNumber, setExpandedPhaseNumber] = useState<number | null>(null);
+
+  // Selected week to inspect (defaults to current or week 1)
+  const activeWeekNumber = currentStatus.currentWeekNumber > 0 ? currentStatus.currentWeekNumber : 1;
+  const activeWeek = useMemo(() => {
+    return TAF_WEEKS.find(w => w.weekNumber === activeWeekNumber) || TAF_WEEKS[0];
+  }, [activeWeekNumber]);
+
+  // Check if a specific workout key was completed this week
+  const isWorkoutCompleted = (workoutKey: 'A' | 'B' | 'C', week: TafWeekDef) => {
+    return runs.some(r => {
+      if (r.tafWeekNumber && r.tafWeekNumber === week.weekNumber) {
+        if (workoutKey === 'A' && r.type === 'A leve/continuo') return true;
+        if (workoutKey === 'B' && r.type === 'B fartlek ou trote-caminhada') return true;
+        if (workoutKey === 'C' && (r.type === 'C moderado ou tiros' || r.type === 'Simulado 12 min')) return true;
+      }
+      return false;
+    });
+  };
+
   const getIntensityBadge = (label: TafWorkoutDef['intensityLabel']) => {
     switch (label) {
       case 'Leve':
-        return 'bg-blue-500/10 border-blue-500/30 text-blue-400';
+        return 'bg-blue-500/10 border-blue-500/25 text-blue-400';
       case 'Moderado':
-        return 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400';
+        return 'bg-cyan-500/10 border-cyan-500/25 text-cyan-400';
       case 'Ritmo-alvo':
-        return 'bg-lime-500/20 border-lime-500/40 text-lime-400 font-bold';
+        return 'bg-[#2DD4BF]/15 border-[#2DD4BF]/30 text-[#2DD4BF] font-semibold';
       case 'Acima do alvo':
-        return 'bg-amber-500/10 border-amber-500/30 text-amber-400 font-bold';
+        return 'bg-[#F5B84B]/15 border-[#F5B84B]/30 text-[#F5B84B] font-semibold';
       case 'Simulado':
-        return 'bg-gradient-to-r from-amber-500/20 to-lime-500/20 border-lime-500/40 text-lime-300 font-black';
+        return 'bg-[#7C6CFF]/15 border-[#7C6CFF]/30 text-[#7C6CFF] font-semibold';
       case 'Descanso / Taper':
-        return 'bg-purple-500/10 border-purple-500/30 text-purple-400';
+        return 'bg-purple-500/10 border-purple-500/25 text-purple-400';
       default:
-        return 'bg-slate-800 text-slate-300';
+        return 'bg-[#1C1F26] text-[#9AA1AD]';
     }
   };
 
   return (
     <div id="taf-plan-view" className="space-y-6">
 
-      {/* Top Banner & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-900 pb-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono tracking-widest text-lime-400 font-extrabold uppercase bg-lime-500/10 border border-lime-500/20 px-2 py-0.5 rounded">
-              PROGRAMAÇÃO OFICIAL • 17 SEMANAS
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              {currentStatus.startDateFormatted} até {currentStatus.examDateFormatted}
-            </span>
-          </div>
-          <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Target className="w-6 h-6 text-lime-400 stroke-[2.5]" />
-            PLANO TAF DE 17 SEMANAS
-          </h1>
-        </div>
-
-        <button
-          type="button"
-          onClick={onNavigateToRuns}
-          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 text-xs font-bold flex items-center gap-2 transition self-start md:self-auto"
-        >
-          <Clock className="w-3.5 h-3.5 text-lime-400" />
-          <span>Ver Diário de Corridas</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* COUNTDOWN & TARGET BANNER HERO CARD */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-lime-500/30 rounded-3xl p-6 relative overflow-hidden shadow-2xl">
-        <div className="absolute right-0 top-0 opacity-5 pointer-events-none transform translate-x-12 -translate-y-6">
-          <Award className="w-72 h-72 text-lime-400" />
-        </div>
-
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          
-          {/* Left: Target and Status (7 cols) */}
-          <div className="lg:col-span-7 space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lime-500/10 border border-lime-500/20 text-xs font-mono font-bold text-lime-400">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>META DA PROVA: 2.200 METROS EM 12 MINUTOS</span>
+      {/* 1. TOPO: CARTÃO ENXUTO COM STATUS, PROGRESSO E CONTAGEM REGRESSIVA */}
+      <section className="p-5 sm:p-6 rounded-[20px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-[10px] bg-[#2DD4BF]/15 text-[#2DD4BF] flex items-center justify-center shrink-0">
+                <Target className="w-4 h-4 stroke-[2.2]" />
+              </div>
+              <span className="text-[12px] font-semibold text-[#2DD4BF] uppercase tracking-wide">
+                Plano TAF de 17 Semanas
+              </span>
             </div>
 
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              Velocidade-Alvo: <span className="text-lime-400">11,0 km/h</span> • Ritmo: <span className="text-cyan-300">5:27/km</span>
-            </h2>
+            <h1 className="text-[22px] sm:text-[24px] font-semibold text-[#F2F3F5] tracking-tight">
+              {currentStatus.isBeforeStart ? (
+                <>O plano começa em 16/11 <span className="text-[15px] font-normal text-[#9AA1AD]">(faltam {currentStatus.daysUntilStart} dias)</span></>
+              ) : (
+                <>Semana {currentStatus.currentWeekNumber} de 17 • {activeWeek.phaseName}</>
+              )}
+            </h1>
+          </div>
 
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed max-w-xl">
-              Plano periodizado em 4 fases na esteira com 1% de inclinação. Corridas fixas na <strong className="text-white">Segunda (A)</strong>, <strong className="text-white">Quarta (B)</strong> e <strong className="text-white">Sábado (C)</strong>. Terça, quinta, sexta e domingo são dedicados à musculação HevyFit ou descanso.
+          {/* Contagem regressiva até a prova */}
+          <div className="p-3 rounded-[14px] bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] self-start sm:self-auto text-left sm:text-right">
+            <span className="text-[11px] text-[#6B7280] font-medium block">
+              Contagem regressiva
+            </span>
+            <p className="text-[18px] font-semibold text-[#F2F3F5] tabular-nums mt-0.5">
+              {currentStatus.daysUntilTaf} dias <span className="text-[12px] text-[#2DD4BF] font-normal">até a prova</span>
             </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono">
-              <span className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-slate-300">
-                ⏱️ Aquecimento: 5m cam + 3-5m trote
-              </span>
-              <span className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-slate-300">
-                📐 Inclinação: 1% na esteira
-              </span>
-              <span className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl text-slate-300">
-                🧘 Volta à calma: 5 min
-              </span>
-            </div>
           </div>
-
-          {/* Right: Countdown Counter Widget (5 cols) */}
-          <div className="lg:col-span-5 bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-850 pb-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400">
-                CONTAGEM REGRESSIVA ATÉ A PROVA
-              </span>
-              <span className="text-[10px] text-lime-400 font-mono font-bold">{currentStatus.examDateFormatted}</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-3">
-                <span className="text-[10px] text-slate-500 font-mono block">DIAS RESTANTES</span>
-                <p className="text-3xl font-black text-lime-400 font-mono">
-                  {currentStatus.daysUntilTaf}
-                </p>
-                <span className="text-[10px] text-slate-400 font-mono">dias para a prova</span>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-3">
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  {currentStatus.isBeforeStart ? 'STATUS DO PLANO' : 'SEMANA ATUAL'}
-                </span>
-                {currentStatus.isBeforeStart ? (
-                  <>
-                    <p className="text-xl font-black text-amber-400 font-mono mt-0.5">
-                      Faltam {currentStatus.daysUntilStart} {currentStatus.daysUntilStart === 1 ? 'dia' : 'dias'}
-                    </p>
-                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                      Inicia {currentStatus.startDateFormatted}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-3xl font-black text-white font-mono">
-                      {currentStatus.currentWeekNumber} <span className="text-xs text-slate-400 font-normal">/ 17</span>
-                    </p>
-                    <span className="text-[10px] text-cyan-400 font-mono font-bold">
-                      {currentStatus.phaseName}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-1.5 pt-1">
-              <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                <span>Progresso do Plano:</span>
-                <span className="text-white font-bold">
-                  {currentStatus.isBeforeStart ? '0% (Pré-início)' : `${currentStatus.progressPercent}%`}
-                </span>
-              </div>
-              <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                <div
-                  className="bg-gradient-to-r from-lime-500 to-emerald-400 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${currentStatus.progressPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
         </div>
-      </div>
 
-      {/* AVISO DE PRÉ-INÍCIO DO PLANO (Hoje até 15/11/2026) */}
-      {currentStatus.isBeforeStart && (
-        <div className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
-                  PRÉ-TEMPORADA TAF
-                </span>
-                <span className="text-xs text-slate-400 font-mono">
-                  Chegada da esteira: 10/11/2026
-                </span>
-              </div>
-              <h3 className="text-sm md:text-base font-bold text-white">
-                O plano começa em {currentStatus.startDateFormatted} (faltam {currentStatus.daysUntilStart} {currentStatus.daysUntilStart === 1 ? 'dia' : 'dias'}).
-              </h3>
-              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-                Antes disso, faça o teste inicial de 12 min na esteira e o salto horizontal. Isso estabelecerá seu ponto de partida para comparar a evolução com a meta de 2.200 m (11 km/h, 5:27/km).
-              </p>
-            </div>
+        {/* Barra de Progresso Enxuta */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-[12px] text-[#9AA1AD]">
+            <span>Período: {currentStatus.startDateFormatted} até {currentStatus.examDateFormatted}</span>
+            <span className="tabular-nums font-medium text-[#F2F3F5]">
+              {currentStatus.isBeforeStart ? 'Pré-início' : `${currentStatus.progressPercent}% concluído`}
+            </span>
           </div>
-
-          <button
-            type="button"
-            id="taf-btn-start-pre-test"
-            onClick={() => onStartRunFromTaf(TAF_PRE_TEST_WORKOUT, 0)}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 transition shrink-0 select-none"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Registrar Corrida de Teste (12 min)</span>
-          </button>
+          <div className="w-full h-2 rounded-full bg-[#1C1F26] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#2DD4BF] to-[#7C6CFF] transition-all duration-300"
+              style={{ width: `${Math.max(4, currentStatus.progressPercent)}%` }}
+            />
+          </div>
         </div>
-      )}
 
-      {/* AS 4 FASES DO PLANO TAF (CARDS DE RESUMO) */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-            Estrutura das 4 Fases de Preparação
+        {/* Meta da Prova Banner Discreto */}
+        <div className="p-3 rounded-[14px] bg-[#1C1F26]/60 border border-[rgba(255,255,255,0.04)] flex flex-wrap items-center justify-between gap-2 text-[12px]">
+          <span className="text-[#9AA1AD] flex items-center gap-1.5">
+            <Award className="w-4 h-4 text-[#2DD4BF]" />
+            <span>Meta Oficial: <strong>2.200 m</strong> em 12 minutos na esteira (1% inclinação)</span>
           </span>
-          <span className="text-[11px] text-slate-500 font-mono">Clique em uma semana abaixo para abrir os treinos</span>
+          <span className="font-mono text-[#2DD4BF] font-semibold">
+            11,0 km/h • 5:27/km
+          </span>
+        </div>
+      </section>
+
+      {/* 2. 'ESTA SEMANA': TRÊS LINHAS (SEGUNDA A, QUARTA B, SÁBADO C) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[17px] font-semibold text-[#F2F3F5]">
+            Esta semana {currentStatus.isBeforeStart ? '(Semana 1 • Base)' : `(Semana ${currentStatus.currentWeekNumber})`}
+          </h2>
+          <span className="text-[12px] text-[#9AA1AD]">
+            {activeWeek.startDate} a {activeWeek.endDate}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {TAF_PHASES_INFO.map((p) => {
-            const isCurrentPhase = !currentStatus.isBeforeStart && currentStatus.phaseNumber === p.phase;
+        <div className="space-y-2.5">
+          {(['A', 'B', 'C'] as const).map((key) => {
+            const workout = activeWeek.workouts[key];
+            const isToday = (key === 'A' && todayDay === 1) || (key === 'B' && todayDay === 3) || (key === 'C' && todayDay === 6);
+            const isCompleted = isWorkoutCompleted(key, activeWeek);
+            const isExpanded = expandedWorkoutKey === key;
+
             return (
               <div
-                key={p.phase}
-                className={`rounded-2xl p-4 border transition ${
-                  isCurrentPhase
-                    ? 'bg-slate-900 border-lime-500/40 shadow-lg shadow-lime-500/5'
-                    : 'bg-slate-950/80 border-slate-850 hover:border-slate-800'
+                key={key}
+                className={`rounded-[18px] transition-all border ${
+                  isToday
+                    ? 'bg-[#1C1F26] border-[#2DD4BF]/50 shadow-sm'
+                    : 'bg-[#15171C] border-[rgba(255,255,255,0.07)]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border ${p.color}`}>
-                    Fase {p.phase}: {p.name}
-                  </span>
-                  {isCurrentPhase && (
-                    <span className="text-[9px] bg-lime-500 text-slate-950 font-bold px-1.5 py-0.5 rounded font-mono uppercase">
-                      Atual
-                    </span>
+                {/* Header Row */}
+                <div
+                  onClick={() => setExpandedWorkoutKey(isExpanded ? null : key)}
+                  className="p-4 flex items-center justify-between gap-3 cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-9 h-9 rounded-[10px] flex items-center justify-center font-semibold text-[13px] shrink-0 border ${
+                        isCompleted
+                          ? 'bg-[#4ADE80]/15 text-[#4ADE80] border-[#4ADE80]/30'
+                          : isToday
+                          ? 'bg-[#2DD4BF]/15 text-[#2DD4BF] border-[#2DD4BF]/30'
+                          : 'bg-[#1C1F26] text-[#9AA1AD] border-[rgba(255,255,255,0.06)]'
+                      }`}
+                    >
+                      {isCompleted ? <CheckCircle2 className="w-5 h-5 stroke-[2.2]" /> : key}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-semibold text-[#F2F3F5] truncate">
+                          {workout.title}
+                        </span>
+                        {isToday && (
+                          <span className="text-[10px] font-semibold text-[#2DD4BF] bg-[#2DD4BF]/15 px-2 py-0.5 rounded-full shrink-0">
+                            Hoje
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#9AA1AD] mt-0.5">
+                        <span>{workout.dayName}</span>
+                        <span>•</span>
+                        <span className="tabular-nums">{workout.suggestedDurationMinutes} min</span>
+                        <span>•</span>
+                        <span>{workout.suggestedSpeedRange}</span>
+                        <span className={`text-[10px] px-2 py-0.2 rounded-full border ${getIntensityBadge(workout.intensityLabel)}`}>
+                          {workout.intensityLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Botão Registrar na linha de hoje */}
+                    {isToday && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStartRunFromTaf(workout, activeWeek.weekNumber);
+                        }}
+                        className="min-h-[38px] px-3.5 rounded-[10px] bg-[#2DD4BF] hover:bg-[#20b8a5] text-[#0E0F13] text-[12px] font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+                      >
+                        <Timer className="w-3.5 h-3.5" />
+                        <span>Registrar</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      aria-label="Expandir passo a passo"
+                      className="p-1 text-[#9AA1AD] hover:text-[#F2F3F5] transition"
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Passo a passo expandido */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="px-4 pb-4 pt-1 border-t border-[rgba(255,255,255,0.05)] space-y-2.5 text-[12px]"
+                    >
+                      <p className="text-[#9AA1AD] leading-relaxed pt-1">
+                        {workout.description}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[#9AA1AD]">
+                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
+                          <span className="text-[#6B7280] block font-medium text-[10px]">Aquecimento</span>
+                          <span className="text-[#F2F3F5]">{workout.warmup}</span>
+                        </div>
+                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
+                          <span className="text-[#6B7280] block font-medium text-[10px]">Esteira</span>
+                          <span className="text-[#F2F3F5]">{workout.incline}</span>
+                        </div>
+                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
+                          <span className="text-[#6B7280] block font-medium text-[10px]">Volta à calma</span>
+                          <span className="text-[#F2F3F5]">{workout.cooldown}</span>
+                        </div>
+                      </div>
+
+                      {/* Lista de tiros se houver */}
+                      {workout.intervals && workout.intervals.length > 0 && (
+                        <div className="p-2.5 rounded-[12px] bg-[#15171C] space-y-1">
+                          <span className="text-[#2DD4BF] font-semibold text-[11px] block">
+                            Blocos / Tiros do Treino:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {workout.intervals.map((int, idx) => (
+                              <span key={int.id || idx} className="px-2 py-0.5 rounded bg-[#1C1F26] text-[#F2F3F5] font-mono text-[11px]">
+                                {int.label}: {int.speedKmh ? `${int.speedKmh} km/h` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!isToday && (
+                        <div className="pt-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => onStartRunFromTaf(workout, activeWeek.weekNumber)}
+                            className="px-3.5 py-1.5 rounded-[10px] bg-[#1C1F26] hover:bg-[#252a35] text-[#2DD4BF] text-[12px] font-medium transition cursor-pointer"
+                          >
+                            Registrar esta corrida
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
-                </div>
-
-                <p className="text-xs font-mono text-slate-400 mb-1.5 font-bold">
-                  {p.weeks.split('(')[0].trim()}
-                </p>
-
-                <p className="text-[11px] text-slate-300 leading-snug line-clamp-3">
-                  {p.goal}
-                </p>
-
-                <div className="mt-3 pt-2 border-t border-slate-850/60 text-[10px] font-mono text-slate-400">
-                  <span className="text-slate-500">Velocidades:</span> <span className="font-bold text-slate-200">{p.intensity}</span>
-                </div>
+                </AnimatePresence>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* SELETOR INTERATIVO DE SEMANAS (1 A 17) */}
-      <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-lime-400" />
-            <h3 className="font-bold text-white text-sm">Selecione a Semana do Treino (1 a 17):</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={selectedWeekNumber <= 1}
-              onClick={() => setSelectedWeekNumber(prev => Math.max(1, prev - 1))}
-              className="p-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-mono font-bold text-lime-400 px-2">
-              Semana {selectedWeekNumber}
-            </span>
-            <button
-              type="button"
-              disabled={selectedWeekNumber >= 17}
-              onClick={() => setSelectedWeekNumber(prev => Math.min(17, prev + 1))}
-              className="p-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+      {/* 3. 'TODAS AS SEMANAS': ACORDEÃO POR FASE (FASES 1 A 4) */}
+      <section className="space-y-3">
+        <h2 className="text-[17px] font-semibold text-[#F2F3F5]">
+          Todas as semanas por fase
+        </h2>
 
-        {/* Horizontal scrollable week pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 scrollbar-thin">
-          {TAF_WEEKS.map((w) => {
-            const isSelected = selectedWeekNumber === w.weekNumber;
-            const isCurrent = !currentStatus.isBeforeStart && currentStatus.currentWeekNumber === w.weekNumber;
+        <div className="space-y-2">
+          {TAF_PHASES_INFO.map((phase) => {
+            const isPhaseExpanded = expandedPhaseNumber === phase.phase;
+            const phaseWeeks = TAF_WEEKS.filter(w => w.phaseNumber === phase.phase);
+
             return (
-              <button
-                key={w.weekNumber}
-                type="button"
-                onClick={() => setSelectedWeekNumber(w.weekNumber)}
-                className={`shrink-0 px-3 py-2 rounded-xl text-xs font-mono font-bold transition border flex flex-col items-center ${
-                  isSelected
-                    ? 'bg-lime-500 text-slate-950 border-lime-400 shadow-md shadow-lime-500/20 scale-105'
-                    : isCurrent
-                    ? 'bg-slate-950 text-lime-400 border-lime-500/40 hover:bg-slate-850'
-                    : 'bg-slate-950/80 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
-                }`}
+              <div
+                key={phase.phase}
+                className="rounded-[18px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] overflow-hidden"
               >
-                <span>SEM {w.weekNumber}</span>
-                <span className={`text-[9px] font-normal ${isSelected ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
-                  {isCurrent ? '• Atual' : currentStatus.isBeforeStart && w.weekNumber === 1 ? 'Inicia 16/11' : `Fase ${w.phaseNumber}`}
-                </span>
-              </button>
+                {/* Phase header trigger */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedPhaseNumber(isPhaseExpanded ? null : phase.phase)}
+                  className="w-full p-4 flex items-center justify-between text-left transition cursor-pointer hover:bg-[#1C1F26]/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-[8px] bg-[#1C1F26] text-[#2DD4BF] font-semibold text-[13px] flex items-center justify-center">
+                      F{phase.phase}
+                    </span>
+                    <div>
+                      <h3 className="text-[14px] font-semibold text-[#F2F3F5]">
+                        Fase {phase.phase}: {phase.name}
+                      </h3>
+                      <p className="text-[12px] text-[#9AA1AD]">
+                        {phase.weeks} • {phaseWeeks[0]?.startDate} a {phaseWeeks[phaseWeeks.length - 1]?.endDate}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#6B7280]">
+                      {phaseWeeks.length} semanas
+                    </span>
+                    {isPhaseExpanded ? <ChevronUp className="w-4 h-4 text-[#9AA1AD]" /> : <ChevronDown className="w-4 h-4 text-[#9AA1AD]" />}
+                  </div>
+                </button>
+
+                {/* Phase weeks list inside accordion */}
+                <AnimatePresence>
+                  {isPhaseExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="px-4 pb-4 pt-1 border-t border-[rgba(255,255,255,0.05)] space-y-2"
+                    >
+                      <p className="text-[12px] text-[#9AA1AD] italic pt-1 mb-2">
+                        Meta: {phase.goal}
+                      </p>
+
+                      <div className="space-y-1.5">
+                        {phaseWeeks.map((week) => (
+                          <div
+                            key={week.weekNumber}
+                            className="p-3 rounded-[12px] bg-[#1C1F26]/60 border border-[rgba(255,255,255,0.04)] text-[12px] flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                          >
+                            <div>
+                              <span className="font-semibold text-[#F2F3F5]">
+                                Semana {week.weekNumber}
+                              </span>
+                              <span className="text-[#6B7280] ml-2">
+                                ({week.startDate} a {week.endDate})
+                              </span>
+                              <p className="text-[11px] text-[#9AA1AD] mt-0.5">
+                                A: {week.workouts.A.suggestedDurationMinutes}m • B: {week.workouts.B.suggestedDurationMinutes}m • C: {week.workouts.C.suggestedDurationMinutes}m ({week.workouts.C.intensityLabel})
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => onStartRunFromTaf(week.workouts.A, week.weekNumber)}
+                              className="text-[11px] font-medium text-[#2DD4BF] hover:underline self-start sm:self-auto"
+                            >
+                              Ver treino A
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             );
           })}
         </div>
-      </div>
-
-      {/* DETALHES DA SEMANA SELECIONADA */}
-      <div className="bg-slate-900 border border-slate-850 rounded-2xl p-6 space-y-6 shadow-xl">
-        
-        {/* Week Title & Goals Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-850 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded border ${selectedPhaseInfo.color}`}>
-                FASE {selectedWeek.phaseNumber}: {selectedWeek.phaseName.toUpperCase()}
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                {selectedWeek.startDate} a {selectedWeek.endDate}
-              </span>
-            </div>
-            <h3 className="text-xl font-bold text-white tracking-tight mt-1">
-              Programação da Semana {selectedWeek.weekNumber} de 17
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              🎯 <strong className="text-lime-400 font-mono">Foco:</strong> {selectedWeek.phaseGoals}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded-xl border border-slate-850">
-            <span className="text-lime-400 font-bold">3 Corridas Fixas:</span>
-            <span>Seg (A) • Qua (B) • Sáb (C)</span>
-          </div>
-        </div>
-
-        {/* OS 3 TREINOS DA SEMANA: CORRIDA A, B E C */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* CORRIDA A (SEGUNDA-FEIRA) */}
-          <div className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                  📅 SEGUNDA-FEIRA
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${getIntensityBadge(selectedWeek.workouts.A.intensityLabel)}`}>
-                  {selectedWeek.workouts.A.intensityLabel}
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-base font-bold text-white">
-                  {selectedWeek.workouts.A.title}
-                </h4>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  {selectedWeek.workouts.A.description}
-                </p>
-              </div>
-
-              {/* Speeds and metrics */}
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-850 space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Velocidade Sugerida:</span>
-                  <span className="text-white font-bold">{selectedWeek.workouts.A.suggestedSpeedRange}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Ritmo Estimado:</span>
-                  <span className="text-cyan-300 font-bold">{selectedWeek.workouts.A.targetPaceFormatted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Duração / Distância:</span>
-                  <span className="text-lime-400 font-bold">
-                    {selectedWeek.workouts.A.suggestedDurationMinutes} min • ~{selectedWeek.workouts.A.suggestedDistanceKm} km
-                  </span>
-                </div>
-              </div>
-
-              {/* Intervals preview if any */}
-              {selectedWeek.workouts.A.intervals && selectedWeek.workouts.A.intervals.length > 0 && (
-                <div className="bg-slate-900/30 p-2.5 rounded-lg border border-slate-850/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 font-mono block">
-                    Intervalos ({selectedWeek.workouts.A.intervals.length} tiros):
-                  </span>
-                  <p className="text-[10px] font-mono text-slate-300">
-                    {selectedWeek.workouts.A.intervals[0].notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Warmup & cooldown notes */}
-              <div className="text-[10px] font-mono text-slate-500 space-y-1">
-                <p>• {selectedWeek.workouts.A.warmup}</p>
-                <p>• {selectedWeek.workouts.A.incline}</p>
-                <p>• {selectedWeek.workouts.A.cooldown}</p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              id="btn-start-run-a"
-              onClick={() => onStartRunFromTaf(selectedWeek.workouts.A, selectedWeek.weekNumber)}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 active:scale-98 transition"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Iniciar Corrida A</span>
-            </button>
-          </div>
-
-          {/* CORRIDA B (QUARTA-FEIRA) */}
-          <div className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                  📅 QUARTA-FEIRA
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${getIntensityBadge(selectedWeek.workouts.B.intensityLabel)}`}>
-                  {selectedWeek.workouts.B.intensityLabel}
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-base font-bold text-white">
-                  {selectedWeek.workouts.B.title}
-                </h4>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  {selectedWeek.workouts.B.description}
-                </p>
-              </div>
-
-              {/* Speeds and metrics */}
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-850 space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Velocidade Sugerida:</span>
-                  <span className="text-white font-bold">{selectedWeek.workouts.B.suggestedSpeedRange}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Ritmo Estimado:</span>
-                  <span className="text-cyan-300 font-bold">{selectedWeek.workouts.B.targetPaceFormatted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Duração / Distância:</span>
-                  <span className="text-lime-400 font-bold">
-                    {selectedWeek.workouts.B.suggestedDurationMinutes} min • ~{selectedWeek.workouts.B.suggestedDistanceKm} km
-                  </span>
-                </div>
-              </div>
-
-              {/* Intervals preview if any */}
-              {selectedWeek.workouts.B.intervals && selectedWeek.workouts.B.intervals.length > 0 && (
-                <div className="bg-slate-900/30 p-2.5 rounded-lg border border-slate-850/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 font-mono block">
-                    Intervalos ({selectedWeek.workouts.B.intervals.length} repetições):
-                  </span>
-                  <p className="text-[10px] font-mono text-slate-300">
-                    {selectedWeek.workouts.B.intervals[0].notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Warmup & cooldown notes */}
-              <div className="text-[10px] font-mono text-slate-500 space-y-1">
-                <p>• {selectedWeek.workouts.B.warmup}</p>
-                <p>• {selectedWeek.workouts.B.incline}</p>
-                <p>• {selectedWeek.workouts.B.cooldown}</p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              id="btn-start-run-b"
-              onClick={() => onStartRunFromTaf(selectedWeek.workouts.B, selectedWeek.weekNumber)}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 active:scale-98 transition"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Iniciar Corrida B</span>
-            </button>
-          </div>
-
-          {/* CORRIDA C (SÁBADO) */}
-          <div className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 flex flex-col justify-between space-y-4 transition">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                  📅 SÁBADO
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${getIntensityBadge(selectedWeek.workouts.C.intensityLabel)}`}>
-                  {selectedWeek.workouts.C.intensityLabel}
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-base font-bold text-white flex items-center gap-1.5">
-                  {selectedWeek.workouts.C.isTafSimulation && <Award className="w-4 h-4 text-amber-400" />}
-                  {selectedWeek.workouts.C.title}
-                </h4>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  {selectedWeek.workouts.C.description}
-                </p>
-              </div>
-
-              {/* Speeds and metrics */}
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-850 space-y-2 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Velocidade Sugerida:</span>
-                  <span className="text-white font-bold">{selectedWeek.workouts.C.suggestedSpeedRange}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Ritmo Estimado:</span>
-                  <span className="text-cyan-300 font-bold">{selectedWeek.workouts.C.targetPaceFormatted}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Duração / Distância:</span>
-                  <span className="text-lime-400 font-bold">
-                    {selectedWeek.workouts.C.suggestedDurationMinutes} min • ~{selectedWeek.workouts.C.suggestedDistanceKm} km
-                  </span>
-                </div>
-              </div>
-
-              {/* Intervals preview if any */}
-              {selectedWeek.workouts.C.intervals && selectedWeek.workouts.C.intervals.length > 0 && (
-                <div className="bg-slate-900/30 p-2.5 rounded-lg border border-slate-850/60 space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 font-mono block">
-                    Intervalos ({selectedWeek.workouts.C.intervals.length} repetições):
-                  </span>
-                  <p className="text-[10px] font-mono text-slate-300">
-                    {selectedWeek.workouts.C.intervals[0].notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Warmup & cooldown notes */}
-              <div className="text-[10px] font-mono text-slate-500 space-y-1">
-                <p>• {selectedWeek.workouts.C.warmup}</p>
-                <p>• {selectedWeek.workouts.C.incline}</p>
-                <p>• {selectedWeek.workouts.C.cooldown}</p>
-              </div>
-            </div>
-
-            {selectedWeek.workouts.C.suggestedDurationMinutes > 0 ? (
-              <button
-                type="button"
-                id="btn-start-run-c"
-                onClick={() => onStartRunFromTaf(selectedWeek.workouts.C, selectedWeek.weekNumber)}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-300 hover:to-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-lime-500/10 active:scale-98 transition"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Iniciar Corrida C</span>
-              </button>
-            ) : (
-              <div className="text-center py-2 text-xs font-mono text-purple-400 bg-purple-500/10 rounded-xl border border-purple-500/20">
-                Dia de Descanso Total Pré-TAF
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* REST OF DAYS NOTICE */}
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-cyan-400 shrink-0" />
-            <p className="text-slate-300">
-              <strong className="text-white">Terça, Quinta, Sexta e Domingo:</strong> Dias sem corrida. Mantenha os treinos de musculação no HevyFit e priorize a recuperação muscular e articular.
-            </p>
-          </div>
-          <span className="text-[10px] font-mono text-slate-500 shrink-0">
-            Frequência ideal: 3x corrida / semana
-          </span>
-        </div>
-
-      </div>
+      </section>
 
     </div>
   );

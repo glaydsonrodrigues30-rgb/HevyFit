@@ -24,7 +24,13 @@ import {
   Lock,
   Edit,
   Timer,
-  Target
+  Target,
+  MoreHorizontal,
+  LogOut,
+  CheckCircle2,
+  User,
+  Footprints,
+  ChevronDown
 } from 'lucide-react';
 import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek, RunLog, TafWorkoutDef } from './types';
 import { TEXTS } from './texts';
@@ -112,6 +118,7 @@ export default function App() {
   });
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   // Sync activeTab with URL & perform admin security validation
   useEffect(() => {
@@ -212,6 +219,8 @@ export default function App() {
 
   // Delete confirm state for workouts history
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [workoutToDelete, setWorkoutToDelete] = useState<WorkoutHistory | null>(null);
+  const [expandedWorkoutIds, setExpandedWorkoutIds] = useState<Record<string, boolean>>({});
 
   // Edit states for workouts history
   const [editingWorkout, setEditingWorkout] = useState<WorkoutHistory | null>(null);
@@ -1010,11 +1019,11 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-2xl flex items-center justify-center border border-lime-400/20 shadow-xl shadow-lime-500/10">
-          <Dumbbell className="w-6 h-6 text-slate-950 stroke-[2.5] animate-spin" style={{ animationDuration: '2.5s' }} />
+      <div className="min-h-screen bg-[#0E0F13] flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 bg-gradient-to-br from-[#7C6CFF] to-[#6A5BF0] rounded-2xl flex items-center justify-center shadow-lg shadow-[#7C6CFF]/20">
+          <Dumbbell className="w-6 h-6 text-white stroke-[2.2] animate-spin" style={{ animationDuration: '2.5s' }} />
         </div>
-        <p className="text-xs text-slate-400 font-mono tracking-wider font-bold uppercase animate-pulse">Carregando HevyFit...</p>
+        <p className="text-sm text-[#9AA1AD] font-medium tracking-wide animate-pulse">Carregando HevyFit...</p>
       </div>
     );
   }
@@ -1039,225 +1048,368 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0E0F13] text-[#F2F3F5] flex flex-col font-sans lg:pl-[240px] xl:pl-[260px]">
       
-      {/* Top Main Navigation Bar panel */}
-      <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40 px-4 md:px-6 py-4 flex items-center justify-between">
-        
-        {/* Brand identity logo */}
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-gradient-to-br from-lime-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-lime-500/10">
-            <Dumbbell className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+      {/* DESKTOP FIXED LEFT SIDEBAR (>= 1024px) */}
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-[240px] xl:w-[260px] bg-[#15171C] border-r border-[rgba(255,255,255,0.07)] p-5 flex-col justify-between z-30 select-none">
+        <div className="space-y-6">
+          {/* Brand Logo & Title */}
+          <div className="flex items-center gap-3 px-2 py-1">
+            <div className="w-9 h-9 rounded-[12px] bg-gradient-to-br from-[#7C6CFF] to-[#6A5BF0] flex items-center justify-center text-white shadow-sm shrink-0">
+              <Dumbbell className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h1 className="text-[18px] font-semibold text-[#F2F3F5] tracking-tight leading-none">
+                HevyFit
+              </h1>
+              <span className="text-[11px] text-[#6B7280] block mt-0.5">
+                Treino &amp; Progressão
+              </span>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-extrabold text-white tracking-widest font-mono">
-              HEVY<span className="text-lime-400 font-sans">FIT</span>
-            </h1>
-            <span className="text-[9px] text-slate-550 block font-mono">Personal Workout Log</span>
-          </div>
+
+          {/* Group 1: Principais (Hoje, Treinar, Corrida, Plano) */}
+          <nav className="space-y-1">
+            <span className="text-[11px] text-[#6B7280] font-medium px-3 block mb-1">
+              Principal
+            </span>
+            {[
+              { id: 'dashboard', label: 'Hoje', icon: Calendar },
+              { id: 'train', label: 'Treinar', icon: Dumbbell, hasBadge: Boolean(activeWorkout) },
+              { id: 'running', label: 'Corrida', icon: Timer },
+              { id: 'taf_plan', label: 'Plano', icon: Target },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isTabActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  id={`desktop-nav-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-[14px] text-[14px] font-medium transition cursor-pointer ${
+                    isTabActive
+                      ? 'bg-[#1C1F26] text-[#7C6CFF] shadow-sm'
+                      : 'text-[#9AA1AD] hover:text-[#F2F3F5] hover:bg-[#1C1F26]/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-4 h-4 stroke-[1.8] ${isTabActive ? 'text-[#7C6CFF]' : 'text-[#6B7280]'}`} />
+                    <span>{tab.label}</span>
+                  </div>
+                  {tab.hasBadge && (
+                    <span className="w-2 h-2 rounded-full bg-[#7C6CFF] animate-pulse" title="Treino em andamento" />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Divider */}
+          <div className="border-t border-[rgba(255,255,255,0.07)]" />
+
+          {/* Group 2: Ferramentas (Histórico, Exercícios, Peso, Ciclo, Admin) */}
+          <nav className="space-y-1">
+            <span className="text-[11px] text-[#6B7280] font-medium px-3 block mb-1">
+              Mais ferramentas
+            </span>
+            {[
+              { id: 'history', label: 'Histórico', icon: History },
+              { id: 'exercises', label: 'Exercícios', icon: TrendingUp },
+              { id: 'weight', label: 'Peso corporal', icon: Scale },
+              { id: 'cycle', label: 'Ciclo', icon: Activity },
+              ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
+                ? [{ id: 'admin', label: 'Admin', icon: Lock }]
+                : [])
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isTabActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  id={`desktop-subnav-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-[14px] text-[13px] font-medium transition cursor-pointer ${
+                    isTabActive
+                      ? 'bg-[#1C1F26] text-[#7C6CFF]'
+                      : 'text-[#9AA1AD] hover:text-[#F2F3F5] hover:bg-[#1C1F26]/40'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 stroke-[1.75] ${isTabActive ? 'text-[#7C6CFF]' : 'text-[#6B7280]'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Global Workout status info pill */}
-        {activeWorkout && activeTab !== 'train' && (
-          <button
-            id="global-active-workout-header-pill"
-            onClick={() => setActiveTab('train')}
-            className="flex items-center gap-2 bg-lime-500/10 border border-lime-500/20 px-3 py-1.5 rounded-full hover:bg-lime-500/15 transition animate-pulse duration-1000 select-none cursor-pointer"
-          >
-            <Clock className="w-3.5 h-3.5 text-lime-400" />
-            <span className="text-[11px] font-semibold text-lime-300">Treino em Andamento...</span>
-          </button>
-        )}
-
-        {/* Desktop inline Menu navigation triggers */}
-        <nav className="hidden md:flex items-center gap-1">
-          {[
-            { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
-            { id: 'train', label: TEXTS.train, icon: Dumbbell },
-            { id: 'running', label: TEXTS.running, icon: Timer },
-            { id: 'taf_plan', label: TEXTS.tafPlan, icon: Target },
-            { id: 'history', label: TEXTS.history, icon: History },
-            { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
-            { id: 'weight', label: TEXTS.weight, icon: Scale },
-            { id: 'cycle', label: TEXTS.cycle, icon: Calendar },
-            ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
-              ? [{ id: 'admin', label: TEXTS.admin || 'Admin', icon: Lock }]
-              : [])
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isTabActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                id={`tab-trigger-${tab.id}`}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-                  isTabActive
-                    ? 'bg-slate-900 border border-slate-800 text-lime-400'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/40'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* User profile / Logout section */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Desktop Profile / Logout Card */}
+        <div className="pt-4 border-t border-[rgba(255,255,255,0.07)]">
           {currentUser ? (
-            <div className="flex items-center gap-2.5 border-l border-slate-800 pl-4 py-1">
-              <img
-                src={currentUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100&q=80'}
-                alt={currentUser.displayName || 'User'}
-                referrerPolicy="no-referrer"
-                className="w-7 h-7 rounded-full border border-slate-800"
-              />
-              <div className="max-w-[120px] text-left leading-tight">
-                <p className="text-[10px] font-bold text-white truncate leading-none">{currentUser.displayName || 'Atleta'}</p>
-                <button
-                  id="btn-desktop-logout"
-                  onClick={handleLogoutClick}
-                  className="text-[9px] font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-wider block mt-1"
-                >
-                  Sair
-                </button>
+            <div className="flex items-center justify-between p-2.5 rounded-[16px] bg-[#1C1F26]/60 border border-[rgba(255,255,255,0.04)]">
+              <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                {currentUser.photoURL ? (
+                  <img
+                    src={currentUser.photoURL}
+                    alt={currentUser.displayName || 'Atleta'}
+                    referrerPolicy="no-referrer"
+                    className="w-8 h-8 rounded-full border border-[rgba(255,255,255,0.1)] shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-[#7C6CFF]/20 text-[#7C6CFF] font-semibold flex items-center justify-center text-[12px] shrink-0">
+                    {(currentUser.displayName || 'A').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-[#F2F3F5] truncate leading-tight">
+                    {currentUser.displayName || 'Atleta'}
+                  </p>
+                  <p className="text-[11px] text-[#6B7280] truncate leading-none mt-0.5">
+                    {currentUser.email}
+                  </p>
+                </div>
               </div>
+              <button
+                id="btn-desktop-logout"
+                type="button"
+                onClick={handleLogoutClick}
+                className="p-1.5 text-[#6B7280] hover:text-[#FF6B6B] hover:bg-[#15171C] rounded-[8px] transition cursor-pointer"
+                title="Sair da conta"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 border-l border-slate-800 pl-4 py-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              <div className="text-left leading-tight">
-                <span className="text-[9px] font-bold text-amber-500 block leading-none">Modo Convidado</span>
-                <button
-                  id="btn-desktop-login"
-                  onClick={() => {
-                    setIsGuest(false);
-                    localStorage.removeItem('hevyfit_is_guest');
-                  }}
-                  className="text-[9px] font-bold text-lime-400 hover:text-lime-300 transition-colors uppercase tracking-wider block mt-1"
-                >
-                  Sincronizar Conta
-                </button>
+            <div className="p-3 rounded-[16px] bg-[#1C1F26]/60 border border-[rgba(255,255,255,0.04)] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F5B84B]" />
+                <span className="text-[11px] text-[#F5B84B] font-medium">Modo Convidado</span>
               </div>
+              <button
+                id="btn-desktop-login"
+                type="button"
+                onClick={() => {
+                  setIsGuest(false);
+                  localStorage.removeItem('hevyfit_is_guest');
+                }}
+                className="w-full py-1.5 rounded-[10px] bg-[#7C6CFF] hover:bg-[#8E80FF] text-[#F2F3F5] text-[12px] font-medium transition cursor-pointer"
+              >
+                Sincronizar Conta
+              </button>
             </div>
           )}
         </div>
+      </aside>
 
-        {/* Mobile menu trigger hamburger */}
+      {/* MOBILE TOP BAR (< 1024px) */}
+      <header className="lg:hidden sticky top-0 z-30 bg-[#0E0F13]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.07)] px-4 py-3 flex items-center justify-between select-none">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[#7C6CFF] to-[#6A5BF0] flex items-center justify-center text-white shadow-sm shrink-0">
+            <Dumbbell className="w-4 h-4 stroke-[2.2]" />
+          </div>
+          <span className="font-semibold text-[17px] text-[#F2F3F5] tracking-tight">
+            HevyFit
+          </span>
+        </div>
+
         <button
-          id="btn-mobile-menu"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 hover:bg-slate-900 rounded-xl transition text-slate-400 hover:text-white animate-fade-in"
+          type="button"
+          onClick={() => setMoreSheetOpen(true)}
+          className="flex items-center gap-2 p-1 pl-2 rounded-full bg-[#15171C] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] hover:text-[#F2F3F5] transition cursor-pointer"
         >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          <span className="text-[12px] font-medium pr-1 text-[#F2F3F5]">
+            {currentUser?.displayName ? currentUser.displayName.split(' ')[0] : 'Menu'}
+          </span>
+          {currentUser?.photoURL ? (
+            <img
+              src={currentUser.photoURL}
+              alt="Avatar"
+              referrerPolicy="no-referrer"
+              className="w-6 h-6 rounded-full"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-[#7C6CFF]/20 text-[#7C6CFF] text-[11px] font-semibold flex items-center justify-center">
+              {(currentUser?.displayName || 'A').charAt(0).toUpperCase()}
+            </div>
+          )}
         </button>
       </header>
 
-      {/* Mobile Drawer menu list */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            id="mobile-drawer-menu"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-b border-slate-900 bg-slate-950 overflow-hidden"
-          >
-            <div className="px-4 py-3 space-y-2">
-              {[
-                { id: 'dashboard', label: TEXTS.dashboard, icon: Activity },
-                { id: 'train', label: TEXTS.train, icon: Dumbbell },
-                { id: 'running', label: TEXTS.running, icon: Timer },
-                { id: 'taf_plan', label: TEXTS.tafPlan, icon: Target },
-                { id: 'history', label: TEXTS.history, icon: History },
-                { id: 'exercises', label: TEXTS.exercises, icon: TrendingUp },
-                { id: 'weight', label: TEXTS.weight, icon: Scale },
-                { id: 'cycle', label: TEXTS.cycle, icon: Calendar },
-                ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
-                  ? [{ id: 'admin', label: TEXTS.admin || 'Admin', icon: Lock }]
-                  : [])
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isTabActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`mobile-tab-trigger-${tab.id}`}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-xs font-semibold transition ${
-                      isTabActive
-                        ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/40'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-
-              {/* Mobile profile sync/status bar */}
-              <div className="pt-2.5 mt-1.5 border-t border-slate-900">
-                {currentUser ? (
-                  <div className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-850/50">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={currentUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&h=100&q=80'}
-                        alt={currentUser.displayName || 'User'}
-                        referrerPolicy="no-referrer"
-                        className="w-7 h-7 rounded-full border border-slate-800"
-                      />
-                      <div className="text-left min-w-0 leading-tight">
-                        <p className="text-[11px] font-bold text-white truncate">{currentUser.displayName || 'Atleta'}</p>
-                        <p className="text-[9px] text-slate-500 truncate">{currentUser.email}</p>
-                      </div>
-                    </div>
-                    <button
-                      id="btn-mobile-logout"
-                      onClick={() => {
-                        handleLogoutClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500 text-red-400 font-bold rounded-lg text-[9px] uppercase transition"
-                    >
-                      Sair
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-850/50">
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <div className="text-left leading-tight">
-                        <span className="text-[10px] font-bold text-amber-500">Acesso offline</span>
-                        <p className="text-[8px] text-slate-500">Dados salvos no navegador</p>
-                      </div>
-                    </div>
-                    <button
-                      id="btn-mobile-login"
-                      onClick={() => {
-                        setIsGuest(false);
-                        localStorage.removeItem('hevyfit_is_guest');
-                        setMobileMenuOpen(false);
-                      }}
-                      className="px-2.5 py-1 bg-lime-500 text-slate-950 font-bold rounded-lg text-[9px] uppercase transition"
-                    >
-                      Entrar
-                    </button>
-                  </div>
+      {/* MOBILE FIXED BOTTOM TAB BAR (< 1024px) */}
+      <nav
+        aria-label="Navegação inferior"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#15171C]/95 backdrop-blur-md border-t border-[rgba(255,255,255,0.07)] grid grid-cols-5 items-center px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),8px)] select-none"
+      >
+        {[
+          { id: 'dashboard', label: 'Hoje', icon: Calendar },
+          { id: 'train', label: 'Treinar', icon: Dumbbell, hasBadge: Boolean(activeWorkout) },
+          { id: 'running', label: 'Corrida', icon: Timer },
+          { id: 'taf_plan', label: 'Plano', icon: Target },
+          { id: 'more', label: 'Mais', icon: Menu, isAction: true },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isTabActive = !item.isAction && activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              id={`mobile-tab-${item.id}`}
+              type="button"
+              onClick={() => {
+                if (item.isAction) {
+                  setMoreSheetOpen(true);
+                } else {
+                  setActiveTab(item.id);
+                }
+              }}
+              className={`flex flex-col items-center justify-center min-h-[48px] py-1 rounded-[12px] relative transition-colors cursor-pointer ${
+                isTabActive ? 'text-[#7C6CFF]' : 'text-[#9AA1AD] hover:text-[#F2F3F5]'
+              }`}
+            >
+              <div className="relative">
+                <Icon className={`w-5 h-5 stroke-[1.8] ${isTabActive ? 'text-[#7C6CFF]' : 'text-[#9AA1AD]'}`} />
+                {item.hasBadge && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#7C6CFF] animate-pulse" />
                 )}
               </div>
-            </div>
-          </motion.div>
+              <span className={`text-[10px] font-medium tracking-tight mt-1 ${isTabActive ? 'text-[#7C6CFF] font-semibold' : 'text-[#9AA1AD]'}`}>
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* MOBILE BOTTOM SHEET FOR "MAIS" */}
+      <AnimatePresence>
+        {moreSheetOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm lg:hidden">
+            <motion.div
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full bg-[#15171C] border-t border-[rgba(255,255,255,0.07)] rounded-t-[24px] p-5 pb-8 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl"
+            >
+              {/* Grab handle */}
+              <div className="w-10 h-1.5 bg-[#6B7280]/40 rounded-full mx-auto" />
+
+              {/* User Identity inside Sheet */}
+              <div className="p-3.5 rounded-[18px] bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] flex items-center justify-between">
+                {currentUser ? (
+                  <div className="flex items-center gap-3 min-w-0">
+                    {currentUser.photoURL ? (
+                      <img
+                        src={currentUser.photoURL}
+                        alt="Avatar"
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-full border border-[rgba(255,255,255,0.1)] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-[#7C6CFF]/20 text-[#7C6CFF] font-semibold flex items-center justify-center text-[14px] shrink-0">
+                        {(currentUser.displayName || 'A').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 text-left">
+                      <p className="text-[14px] font-semibold text-[#F2F3F5] truncate">
+                        {currentUser.displayName || 'Atleta'}
+                      </p>
+                      <p className="text-[12px] text-[#9AA1AD] truncate">
+                        {currentUser.email}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-left">
+                    <span className="text-[12px] font-medium text-[#F5B84B] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#F5B84B]" />
+                      Modo Convidado / Offline
+                    </span>
+                    <p className="text-[11px] text-[#6B7280]">
+                      Seus dados estão salvos no navegador.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setMoreSheetOpen(false)}
+                  className="p-2 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-lg transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Sheet Navigation List */}
+              <div className="space-y-1">
+                {[
+                  { id: 'history', label: 'Histórico de treinos', icon: History },
+                  { id: 'exercises', label: 'Exercícios', icon: TrendingUp },
+                  { id: 'weight', label: 'Peso corporal', icon: Scale },
+                  { id: 'cycle', label: 'Ciclo de treino', icon: Activity },
+                  ...(currentUser && currentUser.email === 'glaydson.rodrigues30@gmail.com'
+                    ? [{ id: 'admin', label: 'Painel Admin', icon: Lock }]
+                    : [])
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isTabActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMoreSheetOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between p-3.5 rounded-[16px] text-[14px] font-medium transition cursor-pointer ${
+                        isTabActive
+                          ? 'bg-[#1C1F26] text-[#7C6CFF]'
+                          : 'text-[#F2F3F5] hover:bg-[#1C1F26]/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 stroke-[1.75] ${isTabActive ? 'text-[#7C6CFF]' : 'text-[#9AA1AD]'}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#6B7280]" />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Action: Sair or Sincronizar */}
+              <div className="pt-2 border-t border-[rgba(255,255,255,0.07)]">
+                {currentUser ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreSheetOpen(false);
+                      handleLogoutClick();
+                    }}
+                    className="w-full min-h-[48px] rounded-[14px] bg-[#1C1F26] hover:bg-[#222630] text-[#FF6B6B] text-[14px] font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sair da conta</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsGuest(false);
+                      localStorage.removeItem('hevyfit_is_guest');
+                      setMoreSheetOpen(false);
+                    }}
+                    className="w-full min-h-[48px] rounded-[14px] bg-[#7C6CFF] hover:bg-[#8E80FF] text-white text-[14px] font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <span>Entrar / Sincronizar conta</span>
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* Primary content area panel */}
-      <main className="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 pb-24">
+      {/* PRIMARY CONTENT AREA PANEL */}
+      <main className="flex-grow max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-28 lg:pb-12">
         
         {/* Render switcher active subview tab */}
         {activeTab === 'dashboard' && (
@@ -1267,11 +1419,14 @@ export default function App() {
             currentCycle={currentCycle}
             routines={routines}
             runs={runs}
+            activeWorkout={activeWorkout}
+            currentUser={currentUser}
             onNavigate={(tab) => setActiveTab(tab)}
             onStartWorkout={handleStartWorkout}
             onStartEmptyWorkout={() => handleStartWorkout('Treino Avulso')}
             onAddWeight={handleAddWeight}
             onStartRunFromTaf={handleStartRunFromTaf}
+            onCancelActiveWorkout={handleCancelWorkout}
           />
         )}
 
@@ -1369,7 +1524,7 @@ export default function App() {
                     onClick={() => setHistorySubTab('report')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all ${
                       historySubTab === 'report'
-                        ? 'bg-[#a3e635] text-slate-950 font-bold shadow-md shadow-lime-500/10'
+                        ? 'bg-[#7C6CFF] text-white font-medium shadow-sm shadow-[#7C6CFF]/20'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1386,235 +1541,311 @@ export default function App() {
             {historySubTab === 'report' ? (
               <WeeklyReport history={history} availableExercises={exercises} />
             ) : history.length === 0 ? (
-              <div className="text-center p-12 bg-slate-900 border border-slate-850 rounded-2xl flex flex-col items-center">
-                <History className="w-12 h-12 text-slate-700 mb-2" />
-                <span className="text-sm font-semibold text-white">Nenhum treino no feed</span>
-                <span className="text-xs text-slate-500 max-w-xs mt-1">Sua lista está vazia. Assim que você finalizar um treino, os logs de séries e cargas aparecerão aqui.</span>
+              <div className="text-center p-12 bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] flex flex-col items-center">
+                <History className="w-12 h-12 text-[#9AA1AD]/40 mb-3" />
+                <span className="text-[15px] font-semibold text-[#F2F3F5]">Nenhum treino no feed</span>
+                <span className="text-[13px] text-[#9AA1AD] max-w-xs mt-1 leading-relaxed">
+                  Sua lista está vazia. Assim que você finalizar um treino, os logs de séries e cargas aparecerão aqui.
+                </span>
               </div>
             ) : (
-              <div className="space-y-4">
-                {[...history].reverse().map((workout) => {
-                  const durationStr = formatDurationStr(workout.durationMs);
-                  const totalSetsCount = workout.exercises.reduce((acc, curr) => acc + curr.sets.length, 0);
+              <div className="space-y-6">
+                {(() => {
+                  const getWeekStartTimestamp = (timestamp: number) => {
+                    const d = new Date(timestamp);
+                    const day = d.getDay();
+                    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                    const monday = new Date(d);
+                    monday.setDate(diff);
+                    monday.setHours(0, 0, 0, 0);
+                    return monday.getTime();
+                  };
 
-                  return (
-                    <div
-                      key={workout.id}
-                      className="bg-slate-900 border border-slate-850 rounded-2xl p-5 hover:border-slate-800 transition"
-                    >
-                      {/* Workout header card */}
-                      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-850 pb-3 gap-2">
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] text-slate-500 font-mono tracking-wider font-bold block uppercase">
-                            {new Date(workout.startTime).toLocaleDateString('pt-BR', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </span>
-                          <h3 className="font-bold text-white text-base font-sans">{workout.name}</h3>
-                        </div>
+                  const formatWeekLabel = (mondayTimestamp: number) => {
+                    const now = new Date();
+                    const currentMonday = getWeekStartTimestamp(now.getTime());
+                    const lastMonday = currentMonday - 7 * 24 * 60 * 60 * 1000;
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono pt-1 md:pt-0">
-                          <span>⏱️ {durationStr}</span>
-                          <span>•</span>
-                          <span>🏋️ {totalSetsCount} séries</span>
-                          {workout.cycleWeek && (
-                            <span className="px-2 py-0.5 bg-lime-500/10 border border-lime-500/15 text-lime-400 rounded-md text-[10px] uppercase font-bold">
-                              Semana {workout.cycleWeek} do Bloco
-                            </span>
-                          )}
+                    if (mondayTimestamp === currentMonday) {
+                      return 'Esta semana';
+                    }
+                    if (mondayTimestamp === lastMonday) {
+                      return 'Semana passada';
+                    }
+
+                    const monday = new Date(mondayTimestamp);
+                    const sunday = new Date(mondayTimestamp + 6 * 24 * 60 * 60 * 1000);
+                    const startStr = monday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    const endStr = sunday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                    return `Semana de ${startStr} a ${endStr}`;
+                  };
+
+                  const calculateWorkoutVolume = (w: WorkoutHistory) => {
+                    return w.exercises.reduce((total, ex) => {
+                      return total + ex.sets.reduce((setTotal, s) => {
+                        const weight = typeof s.weight === 'number' ? s.weight : 0;
+                        const reps = typeof s.reps === 'number' ? s.reps : parseInt(String(s.reps || 0), 10) || 0;
+                        return setTotal + (weight * reps);
+                      }, 0);
+                    }, 0);
+                  };
+
+                  const groups: { weekStart: number; label: string; workouts: WorkoutHistory[] }[] = [];
+                  const sorted = [...history].sort((a, b) => b.startTime - a.startTime);
+
+                  sorted.forEach(workout => {
+                    const weekStart = getWeekStartTimestamp(workout.startTime);
+                    let group = groups.find(g => g.weekStart === weekStart);
+                    if (!group) {
+                      group = {
+                        weekStart,
+                        label: formatWeekLabel(weekStart),
+                        workouts: []
+                      };
+                      groups.push(group);
+                    }
+                    group.workouts.push(workout);
+                  });
+
+                  return groups.map((group) => (
+                    <div key={group.weekStart} className="space-y-3">
+                      {/* Week Header */}
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-[#7C6CFF]" />
+                          <h3 className="text-[13px] font-semibold text-[#F2F3F5] tracking-wide">
+                            {group.label}
+                          </h3>
                         </div>
+                        <span className="text-[12px] text-[#9AA1AD] tabular-nums">
+                          {group.workouts.length} {group.workouts.length === 1 ? 'treino' : 'treinos'}
+                        </span>
                       </div>
 
-                      {/* Workout comment context if exists */}
-                      {workout.comments && (
-                        <div className="my-3 text-xs bg-slate-950 p-3 rounded-xl border border-slate-850/50 text-slate-350 italic">
-                          " {workout.comments} "
-                        </div>
-                      )}
-
-                      {/* List of exercise markers */}
-                      <div className="space-y-3 mt-4">
-                        {workout.exercises.map((ex, exIdx) => {
-                          const details = exercises.find(e => e.id === ex.exerciseId);
+                      {/* Workouts in this week */}
+                      <div className="space-y-3">
+                        {group.workouts.map((workout) => {
+                          const durationStr = formatDurationStr(workout.durationMs);
+                          const totalSetsCount = workout.exercises.reduce((acc, curr) => acc + curr.sets.length, 0);
+                          const totalVolume = calculateWorkoutVolume(workout);
+                          const isExpanded = !!expandedWorkoutIds[workout.id];
                           const isInlineEditing = inlineEditingWorkoutId === workout.id;
-                          const currentEditEx = inlineEditingExercises.find(e => e.exerciseId === ex.exerciseId);
 
                           return (
-                            <div key={exIdx} className="bg-slate-950/40 p-3 rounded-xl border border-slate-850/40 space-y-2">
-                              <span className="text-xs text-slate-200 font-bold block">
-                                {(details?.name || ex.exerciseId) || "Sem nome"}
-                              </span>
-                              
-                              {/* Series logs listing in line */}
-                              <div className="flex flex-wrap gap-2 pt-0.5">
-                                {isInlineEditing && currentEditEx ? (
-                                  currentEditEx.sets.map((s, sIdx) => (
-                                    <div
-                                      key={sIdx}
-                                      className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-slate-300 font-mono text-[10px] flex items-center gap-1.5"
+                            <div
+                              key={workout.id}
+                              className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4 sm:p-5 hover:border-[rgba(255,255,255,0.12)] transition"
+                            >
+                              {/* Header clickable to expand/collapse */}
+                              <div
+                                onClick={() => {
+                                  if (!isInlineEditing) {
+                                    setExpandedWorkoutIds(prev => ({ ...prev, [workout.id]: !prev[workout.id] }));
+                                  }
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="space-y-0.5">
+                                    <span className="text-[12px] text-[#9AA1AD] block lowercase">
+                                      {new Date(workout.startTime).toLocaleDateString('pt-BR', {
+                                        weekday: 'long',
+                                        day: 'numeric',
+                                        month: 'long'
+                                      })}
+                                    </span>
+                                    <h4 className="font-semibold text-[#F2F3F5] text-[16px]">{workout.name}</h4>
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    {workout.cycleWeek && (
+                                      <span className="px-2 py-0.5 bg-[#7C6CFF]/10 border border-[#7C6CFF]/20 text-[#7C6CFF] rounded-md text-[11px] font-medium">
+                                        Semana {workout.cycleWeek}
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      aria-label={isExpanded ? 'Recolher detalhes' : 'Expandir detalhes'}
+                                      className="w-8 h-8 rounded-full bg-[#1C1F26] flex items-center justify-center text-[#9AA1AD] hover:text-[#F2F3F5] transition shrink-0"
                                     >
-                                      <span className="text-slate-500 font-bold">#{sIdx + 1}</span>
-                                      <div className="flex items-center gap-1">
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          value={s.weight !== null ? s.weight : ''}
-                                          onChange={(e) => {
-                                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                                            const updated = [...inlineEditingExercises];
-                                            const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
-                                            if (exToUpdate) {
-                                              exToUpdate.sets[sIdx].weight = val;
-                                            }
-                                            setInlineEditingExercises(updated);
-                                          }}
-                                          className="w-11 bg-slate-950 border border-slate-800 rounded text-center text-[10px] text-white focus:outline-none focus:border-lime-500 p-0.5 font-mono"
-                                          placeholder="0"
-                                        />
-                                        <span className="text-slate-500 text-[9px]">kg</span>
-                                        <span className="text-slate-400 font-bold">×</span>
-                                        <input
-                                          type="text"
-                                          value={s.reps ?? ''}
-                                          onChange={(e) => {
-                                            const updated = [...inlineEditingExercises];
-                                            const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
-                                            if (exToUpdate) {
-                                              exToUpdate.sets[sIdx].reps = e.target.value;
-                                            }
-                                            setInlineEditingExercises(updated);
-                                          }}
-                                          className="w-9 bg-slate-950 border border-slate-800 rounded text-center text-[10px] text-white focus:outline-none focus:border-lime-500 p-0.5 font-mono"
-                                          placeholder="0"
-                                        />
-                                      </div>
-                                      {s.type === 'Aquecimento' && <span className="text-amber-500 text-[8px] uppercase font-bold leading-none">Aq.</span>}
-                                      {s.type === 'Adaptação' && <span className="text-sky-400 text-[8px] uppercase font-bold leading-none">Ad.</span>}
-                                      {s.type === 'Trabalho' && <span className="text-lime-400 text-[8px] uppercase font-bold leading-none">Tr.</span>}
-                                    </div>
-                                  ))
-                                ) : (
-                                  ex.sets.map((s, sIdx) => (
-                                    <div
-                                      key={sIdx}
-                                      className="px-2.5 py-1 bg-slate-900 border border-slate-850 rounded-lg text-slate-300 font-mono text-[10px] flex items-center gap-1.5"
-                                    >
-                                      <span className="text-slate-500 font-bold">#{sIdx + 1}</span>
-                                      <span>{s.weight}kg × {s.reps}</span>
-                                      {s.type === 'Aquecimento' && <span className="text-amber-500 text-[8px] uppercase font-bold leading-none">Aq.</span>}
-                                      {s.type === 'Adaptação' && <span className="text-sky-400 text-[8px] uppercase font-bold leading-none">Ad.</span>}
-                                      {s.type === 'Trabalho' && <span className="text-lime-400 text-[8px] uppercase font-bold leading-none">Tr.</span>}
-                                    </div>
-                                  ))
-                                )}
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-4 h-4 rotate-180 transition-transform" />
+                                      ) : (
+                                        <ChevronDown className="w-4 h-4 transition-transform" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Clean metrics badges */}
+                                <div className="flex flex-wrap items-center gap-2 pt-3 text-[12px] text-[#9AA1AD] tabular-nums">
+                                  <span className="px-2.5 py-1 rounded-[10px] bg-[#1C1F26] text-[#F2F3F5] font-medium flex items-center gap-1.5">
+                                    <span>⏱️</span>
+                                    <span>{durationStr}</span>
+                                  </span>
+                                  <span className="px-2.5 py-1 rounded-[10px] bg-[#1C1F26] text-[#F2F3F5] font-medium flex items-center gap-1.5">
+                                    <span>🏋️</span>
+                                    <span>{totalVolume > 0 ? `${totalVolume.toLocaleString('pt-BR')} kg` : '0 kg'}</span>
+                                  </span>
+                                  <span className="px-2.5 py-1 rounded-[10px] bg-[#1C1F26] text-[#9AA1AD] flex items-center gap-1.5">
+                                    <span>{totalSetsCount} séries</span>
+                                  </span>
+                                </div>
                               </div>
+
+                              {/* Expandable workout detail */}
+                              {isExpanded && (
+                                <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)] space-y-3">
+                                  {workout.comments && (
+                                    <div className="text-[13px] bg-[#1C1F26] p-3 rounded-[12px] border border-[rgba(255,255,255,0.05)] text-[#9AA1AD] italic">
+                                      "{workout.comments}"
+                                    </div>
+                                  )}
+
+                                  {/* List of exercise markers */}
+                                  <div className="space-y-2.5">
+                                    {workout.exercises.map((ex, exIdx) => {
+                                      const details = exercises.find(e => e.id === ex.exerciseId);
+                                      const currentEditEx = inlineEditingExercises.find(e => e.exerciseId === ex.exerciseId);
+
+                                      return (
+                                        <div key={exIdx} className="bg-[#1C1F26]/70 p-3 rounded-[14px] border border-[rgba(255,255,255,0.04)] space-y-2">
+                                          <span className="text-[13px] text-[#F2F3F5] font-semibold block">
+                                            {(details?.name || ex.exerciseId) || 'Sem nome'}
+                                          </span>
+
+                                          <div className="flex flex-wrap gap-2 pt-0.5">
+                                            {isInlineEditing && currentEditEx ? (
+                                              currentEditEx.sets.map((s, sIdx) => (
+                                                <div
+                                                  key={sIdx}
+                                                  className="px-2 py-1 bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[10px] text-[#F2F3F5] tabular-nums text-[12px] flex items-center gap-1.5"
+                                                >
+                                                  <span className="text-[#6B7280] font-medium">#{sIdx + 1}</span>
+                                                  <div className="flex items-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      step="any"
+                                                      value={s.weight !== null ? s.weight : ''}
+                                                      onChange={(e) => {
+                                                        const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                                                        const updated = [...inlineEditingExercises];
+                                                        const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
+                                                        if (exToUpdate) {
+                                                          exToUpdate.sets[sIdx].weight = val;
+                                                        }
+                                                        setInlineEditingExercises(updated);
+                                                      }}
+                                                      className="w-11 bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded text-center text-[12px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] p-0.5"
+                                                      placeholder="0"
+                                                    />
+                                                    <span className="text-[#6B7280] text-[10px]">kg</span>
+                                                    <span className="text-[#9AA1AD] font-medium">×</span>
+                                                    <input
+                                                      type="text"
+                                                      value={s.reps ?? ''}
+                                                      onChange={(e) => {
+                                                        const updated = [...inlineEditingExercises];
+                                                        const exToUpdate = updated.find(u => u.exerciseId === ex.exerciseId);
+                                                        if (exToUpdate) {
+                                                          exToUpdate.sets[sIdx].reps = e.target.value;
+                                                        }
+                                                        setInlineEditingExercises(updated);
+                                                      }}
+                                                      className="w-9 bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded text-center text-[12px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] p-0.5"
+                                                      placeholder="0"
+                                                    />
+                                                  </div>
+                                                  {s.type === 'Aquecimento' && <span className="text-[#F5B84B] text-[9px] uppercase font-bold leading-none">Aq.</span>}
+                                                  {s.type === 'Adaptação' && <span className="text-sky-400 text-[9px] uppercase font-bold leading-none">Ad.</span>}
+                                                  {s.type === 'Trabalho' && <span className="text-[#7C6CFF] text-[9px] uppercase font-bold leading-none">Tr.</span>}
+                                                </div>
+                                              ))
+                                            ) : (
+                                              ex.sets.map((s, sIdx) => (
+                                                <div
+                                                  key={sIdx}
+                                                  className="px-2.5 py-1 bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[10px] text-[#F2F3F5] tabular-nums text-[12px] flex items-center gap-1.5"
+                                                >
+                                                  <span className="text-[#6B7280] font-medium">#{sIdx + 1}</span>
+                                                  <span>{s.weight}kg × {s.reps}</span>
+                                                  {s.type === 'Aquecimento' && <span className="text-[#F5B84B] text-[9px] uppercase font-bold leading-none">Aq.</span>}
+                                                  {s.type === 'Adaptação' && <span className="text-sky-400 text-[9px] uppercase font-bold leading-none">Ad.</span>}
+                                                  {s.type === 'Trabalho' && <span className="text-[#7C6CFF] text-[9px] uppercase font-bold leading-none">Tr.</span>}
+                                                </div>
+                                              ))
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {/* Actions Row */}
+                                  <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-[rgba(255,255,255,0.06)]">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {isInlineEditing ? (
+                                        <>
+                                          <button
+                                            id={`btn-save-inline-edit-${workout.id}`}
+                                            onClick={() => handleSaveInlineEditWorkout(workout.id)}
+                                            className="flex items-center gap-1 text-[11px] bg-[#7C6CFF] hover:bg-[#8E80FF] text-white font-medium py-1.5 px-3 rounded-[10px] transition cursor-pointer"
+                                          >
+                                            <span>Salvar alterações</span>
+                                          </button>
+                                          <button
+                                            id={`btn-cancel-inline-edit-${workout.id}`}
+                                            onClick={() => {
+                                              setInlineEditingWorkoutId(null);
+                                              setInlineEditingExercises([]);
+                                            }}
+                                            className="flex items-center gap-1 text-[11px] bg-[#1C1F26] hover:bg-[#252a35] text-[#9AA1AD] hover:text-[#F2F3F5] font-medium py-1.5 px-3 rounded-[10px] transition cursor-pointer"
+                                          >
+                                            <span>Cancelar</span>
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            id={`btn-edit-history-direct-${workout.id}`}
+                                            onClick={() => {
+                                              setInlineEditingWorkoutId(workout.id);
+                                              setInlineEditingExercises(JSON.parse(JSON.stringify(workout.exercises)));
+                                            }}
+                                            className="flex items-center gap-1.5 text-[12px] text-[#7C6CFF] hover:text-[#8E80FF] font-medium py-1.5 px-2.5 rounded-[10px] hover:bg-[#1C1F26] transition cursor-pointer"
+                                          >
+                                            <Edit className="w-3.5 h-3.5" />
+                                            <span>Editar Treino</span>
+                                          </button>
+                                          <button
+                                            id={`btn-edit-history-${workout.id}`}
+                                            onClick={() => handleStartEditWorkout(workout)}
+                                            className="flex items-center gap-1.5 text-[12px] text-[#9AA1AD] hover:text-[#F2F3F5] font-medium py-1.5 px-2.5 rounded-[10px] hover:bg-[#1C1F26] transition cursor-pointer"
+                                          >
+                                            <span>Campos / Data</span>
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    <button
+                                      id={`btn-delete-history-${workout.id}`}
+                                      onClick={() => setWorkoutToDelete(workout)}
+                                      className="flex items-center gap-1.5 text-[12px] text-[#6B7280] hover:text-[#FF6B6B] font-medium transition-colors py-1.5 px-2.5 rounded-[10px] hover:bg-[#FF6B6B]/10 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Excluir Treino</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
                       </div>
-
-                      {/* Historical delete and edit */}
-                      <div className="flex justify-between items-center pt-3 mt-2 border-t border-slate-850/30">
-                        <div>
-                          {deletingWorkoutId !== workout.id && (
-                            <div className="flex flex-wrap items-center gap-2">
-                              {inlineEditingWorkoutId === workout.id ? (
-                                <>
-                                  <button
-                                    id={`btn-save-inline-edit-${workout.id}`}
-                                    onClick={() => handleSaveInlineEditWorkout(workout.id)}
-                                    className="flex items-center gap-1 text-[10px] bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold uppercase tracking-wider transition-colors py-1.5 px-3 rounded-lg"
-                                  >
-                                    <span>Salvar alterações</span>
-                                  </button>
-                                  <button
-                                    id={`btn-cancel-inline-edit-${workout.id}`}
-                                    onClick={() => {
-                                      setInlineEditingWorkoutId(null);
-                                      setInlineEditingExercises([]);
-                                    }}
-                                    className="flex items-center gap-1 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold uppercase tracking-wider transition-colors py-1.5 px-3 rounded-lg"
-                                  >
-                                    <span>Cancelar</span>
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    id={`btn-edit-history-direct-${workout.id}`}
-                                    onClick={() => {
-                                      setInlineEditingWorkoutId(workout.id);
-                                      setInlineEditingExercises(JSON.parse(JSON.stringify(workout.exercises)));
-                                    }}
-                                    className="flex items-center gap-1.5 text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                    <span>Editar Treino</span>
-                                  </button>
-                                  <button
-                                    id={`btn-edit-history-${workout.id}`}
-                                    onClick={() => handleStartEditWorkout(workout)}
-                                    className="flex items-center gap-1.5 text-[10px] text-slate-400 hover:text-slate-300 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
-                                  >
-                                    <span>Campos / Data</span>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {deletingWorkoutId === workout.id ? (
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
-                              Confirmar exclusão?
-                            </span>
-                            <button
-                              id={`btn-confirm-delete-${workout.id}`}
-                              onClick={async () => {
-                                const updated = history.filter(w => w.id !== workout.id);
-                                setHistory(updated);
-                                if (currentUser && auth.currentUser) {
-                                  try {
-                                    await setDoc(doc(db, 'users', currentUser.uid), {
-                                      workouts: updated,
-                                      history: updated
-                                    }, { merge: true });
-                                  } catch (error) {
-                                    console.error('Error deleting workout in Firebase:', error);
-                                  }
-                                }
-                                setDeletingWorkoutId(null);
-                              }}
-                              className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 font-bold rounded-lg text-[10px] uppercase transition"
-                            >
-                              Sim, excluir
-                            </button>
-                            <button
-                              id={`btn-cancel-delete-${workout.id}`}
-                              onClick={() => setDeletingWorkoutId(null)}
-                              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-[10px] uppercase transition"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            id={`btn-delete-history-${workout.id}`}
-                            onClick={() => setDeletingWorkoutId(workout.id)}
-                            className="flex items-center gap-1 text-[10px] text-slate-600 hover:text-red-400 font-bold uppercase tracking-wider transition-colors py-1 px-2 rounded hover:bg-slate-900"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Excluir Treino</span>
-                          </button>
-                        )}
-                      </div>
                     </div>
-                  );
-                })}
+                  ));
+                })()}
               </div>
             )}
           </div>
@@ -1633,6 +1864,7 @@ export default function App() {
 
         {activeTab === 'taf_plan' && (
           <TafPlanView
+            runs={runs}
             onStartRunFromTaf={handleStartRunFromTaf}
             onNavigateToRuns={() => setActiveTab('running')}
           />
@@ -1718,42 +1950,42 @@ export default function App() {
       {/* FULL SCREEN CELEBRATION MODAL ON SUCCESSFUL FINISH */}
       <AnimatePresence>
         {showCelebration && lastFinishedWorkoutStats && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 overflow-hidden align-middle">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm overflow-hidden align-middle">
             <motion.div
               id="celebration-box"
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-sm text-center relative p-8 bg-slate-900 border border-slate-850 rounded-3xl shadow-2xl relative"
+              className="w-full max-w-sm text-center relative p-8 bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[24px] shadow-2xl relative"
             >
               <div className="absolute top-0 inset-x-0 flex justify-center -translate-y-12">
-                <div className="w-24 h-24 bg-gradient-to-br from-lime-400 to-emerald-400 rounded-full flex items-center justify-center text-slate-950 font-bold border-8 border-slate-950 shadow-xl shadow-lime-500/25">
-                  <Trophy className="w-10 h-10 animate-bounce" />
+                <div className="w-22 h-22 bg-gradient-to-br from-[#7C6CFF] to-[#6A5BF0] rounded-full flex items-center justify-center text-white font-bold border-6 border-[#15171C] shadow-xl shadow-[#7C6CFF]/30">
+                  <Trophy className="w-9 h-9 animate-bounce" />
                 </div>
               </div>
 
-              <div className="space-y-1 pt-12">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-lime-400 uppercase tracking-widest font-mono">
-                  <Sparkles className="w-3.5 h-3.5" />
+              <div className="space-y-1.5 pt-12">
+                <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[#7C6CFF]">
+                  <Sparkles className="w-4 h-4" />
                   <span>Treino Concluído!</span>
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-xl text-white font-sans truncate">{lastFinishedWorkoutStats.name}</h4>
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">Parabéns por registrar mais uma sessão de treinos. Sua evolução contínua gera grandes resultados!</p>
+                <h4 className="font-semibold text-[20px] text-[#F2F3F5] truncate">{lastFinishedWorkoutStats.name}</h4>
+                <p className="text-[13px] text-[#9AA1AD] max-w-xs mx-auto">Parabéns por registrar mais uma sessão de treinos. Sua constância gera grandes resultados!</p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5 py-5 my-4 border-y border-slate-850 bg-slate-950/40 p-3 rounded-2xl">
+              <div className="grid grid-cols-3 gap-2 py-4 my-4 border-y border-[rgba(255,255,255,0.07)] bg-[#1C1F26] p-3 rounded-[16px]">
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Duração</span>
-                  <p className="font-bold font-mono text-white text-base">{lastFinishedWorkoutStats.durationMins} min</p>
+                  <span className="text-[11px] text-[#6B7280] font-medium block">Duração</span>
+                  <p className="font-semibold tabular-nums text-[#F2F3F5] text-[16px]">{lastFinishedWorkoutStats.durationMins} min</p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Volume</span>
-                  <p className="font-bold font-mono text-lime-400 text-base">{lastFinishedWorkoutStats.volume} kg</p>
+                  <span className="text-[11px] text-[#6B7280] font-medium block">Volume</span>
+                  <p className="font-semibold tabular-nums text-[#7C6CFF] text-[16px]">{lastFinishedWorkoutStats.volume} kg</p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Séries</span>
-                  <p className="font-bold font-mono text-white text-base">{lastFinishedWorkoutStats.sets}</p>
+                  <span className="text-[11px] text-[#6B7280] font-medium block">Séries</span>
+                  <p className="font-semibold tabular-nums text-[#F2F3F5] text-[16px]">{lastFinishedWorkoutStats.sets}</p>
                 </div>
               </div>
 
@@ -1763,9 +1995,9 @@ export default function App() {
                   setShowCelebration(false);
                   setLastFinishedWorkoutStats(null);
                 }}
-                className="w-full py-3 bg-lime-500 hover:bg-lime-600 rounded-2xl text-slate-950 font-bold font-sans text-xs transition"
+                className="w-full min-h-[48px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] rounded-[14px] text-white font-semibold text-[14px] transition cursor-pointer shadow-lg shadow-[#7C6CFF]/20"
               >
-                Concluir e Voltar ao Diário
+                Concluir e Voltar
               </button>
             </motion.div>
           </div>
@@ -1781,17 +2013,17 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 border border-slate-850 rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+              className="bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] p-6 w-full max-w-md shadow-2xl relative"
             >
-              <div className="flex items-center justify-between mb-4 border-b border-slate-850 pb-3">
+              <div className="flex items-center justify-between mb-4 border-b border-[rgba(255,255,255,0.07)] pb-3">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-lime-400" />
-                  <h3 className="font-bold text-white text-base font-sans">Editar Sessão de Treino</h3>
+                  <Calendar className="w-5 h-5 text-[#7C6CFF]" />
+                  <h3 className="font-semibold text-[#F2F3F5] text-[16px]">Editar Sessão de Treino</h3>
                 </div>
                 <button
                   id="btn-close-edit-modal"
                   onClick={() => setEditingWorkout(null)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                  className="text-[#9AA1AD] hover:text-[#F2F3F5] p-1.5 rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                   type="button"
                 >
                   <X className="w-5 h-5" />
@@ -1800,7 +2032,7 @@ export default function App() {
 
               <form onSubmit={handleSaveEditWorkout} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                  <label className="block text-[12px] font-medium text-[#9AA1AD] mb-1.5">
                     Nome do Treino
                   </label>
                   <input
@@ -1808,32 +2040,32 @@ export default function App() {
                     type="text"
                     value={editWorkoutName}
                     onChange={(e) => setEditWorkoutName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-sans"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF]"
                     placeholder="Nome do Treino"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
-                    Data e Hora do Treino (Alterar Data)
+                  <label className="block text-[12px] font-medium text-[#9AA1AD] mb-1.5">
+                    Data e Hora do Treino
                   </label>
                   <input
                     id="edit-workout-date"
                     type="datetime-local"
                     value={editWorkoutDateStr}
                     onChange={(e) => setEditWorkoutDateStr(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-mono"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] font-mono"
                     required
                   />
-                  <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                  <p className="text-[11px] text-[#6B7280] mt-1">
                     Ajuste este campo para alterar a data deste treino para o passado (registro retroativo).
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
-                    Duração em Minutos (⏱️)
+                  <label className="block text-[12px] font-medium text-[#9AA1AD] mb-1.5">
+                    Duração em Minutos
                   </label>
                   <input
                     id="edit-workout-duration"
@@ -1842,20 +2074,20 @@ export default function App() {
                     max="1440"
                     value={editWorkoutDurationMins}
                     onChange={(e) => setEditWorkoutDurationMins(parseInt(e.target.value) || 0)}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-mono"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] tabular-nums"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-1.5">
+                  <label className="block text-[12px] font-medium text-[#9AA1AD] mb-1.5">
                     Comentários / Notas (Opcional)
                   </label>
                   <textarea
                     id="edit-workout-comments"
                     value={editWorkoutComments}
                     onChange={(e) => setEditWorkoutComments(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-slate-700 font-sans h-20 resize-none"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3.5 py-2.5 text-[14px] text-[#F2F3F5] focus:outline-none focus:border-[#7C6CFF] h-20 resize-none"
                     placeholder="Notas ou comentários sobre o desempenho no treino..."
                   />
                 </div>
@@ -1865,19 +2097,74 @@ export default function App() {
                     id="btn-cancel-edit-form"
                     type="button"
                     onClick={() => setEditingWorkout(null)}
-                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider font-mono transition"
+                    className="min-h-[48px] bg-[#1C1F26] hover:bg-[#252a35] text-[#9AA1AD] hover:text-[#F2F3F5] font-medium rounded-[14px] text-[13px] transition cursor-pointer"
                   >
                     Descartar
                   </button>
                   <button
                     id="btn-save-edit-form"
                     type="submit"
-                    className="py-2.5 bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold rounded-xl text-xs uppercase tracking-wider font-mono transition"
+                    className="min-h-[48px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white font-medium rounded-[14px] text-[13px] transition cursor-pointer shadow-md shadow-[#7C6CFF]/20"
                   >
                     Salvar Ajustes
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL PARA CONFIRMAR EXCLUSÃO DE TREINO */}
+      <AnimatePresence>
+        {workoutToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <motion.div
+              id="delete-workout-modal"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] max-w-sm w-full p-6 space-y-4 shadow-2xl"
+            >
+              <div className="space-y-1.5">
+                <h4 className="text-[17px] font-semibold text-[#F2F3F5]">Excluir treino?</h4>
+                <p className="text-[13px] text-[#9AA1AD] leading-relaxed">
+                  Tem certeza de que deseja excluir o treino <strong className="text-[#F2F3F5] font-medium">{workoutToDelete.name}</strong>? Essa ação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  id="btn-cancel-delete-modal"
+                  onClick={() => setWorkoutToDelete(null)}
+                  className="min-h-[44px] px-4 rounded-[12px] bg-[#1C1F26] text-[#F2F3F5] text-[13px] font-medium hover:bg-[#252a35] transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  id="btn-confirm-delete-modal"
+                  onClick={async () => {
+                    const idToDelete = workoutToDelete.id;
+                    const updated = history.filter(w => w.id !== idToDelete);
+                    setHistory(updated);
+                    if (currentUser && auth.currentUser) {
+                      try {
+                        await setDoc(doc(db, 'users', currentUser.uid), {
+                          workouts: updated,
+                          history: updated
+                        }, { merge: true });
+                      } catch (error) {
+                        console.error('Error deleting workout in Firebase:', error);
+                      }
+                    }
+                    setWorkoutToDelete(null);
+                  }}
+                  className="min-h-[44px] px-4 rounded-[12px] bg-[#FF6B6B] hover:bg-[#ff5252] text-white text-[13px] font-semibold transition cursor-pointer shadow-sm shadow-[#FF6B6B]/20"
+                >
+                  Sim, excluir
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

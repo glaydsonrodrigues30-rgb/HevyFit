@@ -3,8 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Play, Clipboard, Dumbbell, Trash2, Plus, Check, Undo, Search, Filter, X, ChevronDown, ChevronUp, Award, Edit, Printer, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Play, 
+  Clipboard, 
+  Dumbbell, 
+  Trash2, 
+  Plus, 
+  Check, 
+  Undo, 
+  Search, 
+  Filter, 
+  X, 
+  ChevronDown, 
+  ChevronUp, 
+  Award, 
+  Edit, 
+  Printer, 
+  AlertCircle,
+  MoreVertical,
+  Clock,
+  Sparkles
+} from 'lucide-react';
 import { ActiveWorkout, Exercise, ExerciseWorkoutState, SetState, SetType, WorkoutHistory, WorkoutRoutine } from '../types';
 import { INITIAL_EXERCISES } from '../repositories/mockExercises';
 import { motion, AnimatePresence } from 'motion/react';
@@ -84,6 +104,8 @@ export default function WorkoutLog({
 
   // Routine Delete State
   const [deletingRoutineId, setDeletingRoutineId] = useState<string | null>(null);
+  // Three-dots menu open routine state
+  const [openMenuRoutineId, setOpenMenuRoutineId] = useState<string | null>(null);
 
   // Print Modal State
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -594,83 +616,109 @@ export default function WorkoutLog({
             className="space-y-6"
           >
             {/* Action Bar Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[rgba(255,255,255,0.07)] pb-4">
               <div>
-                <h2 className="text-xl font-bold text-white tracking-tight">Começar Treino</h2>
-                <p className="text-xs text-slate-400">Selecione uma de suas rotinas abaixo ou inicie um treino personalizado vazio.</p>
+                <h1 className="text-[28px] sm:text-[32px] font-semibold text-[#F2F3F5] tracking-tight">
+                  Treinar
+                </h1>
+                <p className="text-[14px] text-[#9AA1AD] mt-0.5">
+                  Escolha uma rotina ou inicie uma sessão avulsa.
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <button
-                  id="btn-print-weekly-sheet"
-                  onClick={() => setShowPrintModal(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-sky-400 font-bold font-sans text-sm transition active:scale-95 shrink-0"
-                >
-                  <Printer className="w-4 h-4 shrink-0" />
-                  <span>Imprimir Ficha</span>
-                </button>
-                <button
                   id="btn-create-routine"
                   onClick={handleCreateRoutineTrigger}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-lime-400 font-bold font-sans text-sm transition active:scale-95 shrink-0"
+                  className="flex items-center justify-center gap-2 min-h-[44px] px-3.5 rounded-[12px] bg-[#1C1F26] hover:bg-[#222630] border border-[rgba(255,255,255,0.07)] text-[#F2F3F5] font-medium text-[13px] transition active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                  <span>Nova Rotina</span>
+                  <span>Nova rotina</span>
                 </button>
                 <button
                   id="btn-start-custom-workout"
                   onClick={handleCreateEmptyWorkout}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-600 hover:to-emerald-600 font-bold text-slate-950 font-sans text-sm shadow-md transition active:scale-95 shrink-0"
+                  className="flex items-center justify-center gap-2 min-h-[44px] px-3.5 rounded-[12px] bg-[#1C1F26] hover:bg-[#222630] border border-[rgba(255,255,255,0.07)] text-[#F2F3F5] font-medium text-[13px] transition active:scale-95 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4 shrink-0 stroke-[3px]" />
-                  <span>Iniciar Treino Vazio</span>
+                  <Plus className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                  <span>Treino vazio</span>
                 </button>
               </div>
             </div>
 
-            {/* Routines Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {routines.map((routine) => {
-                const totalSets = routine.exercises.reduce((acc, c) => acc + c.sets.length, 0);
-                
-                return (
-                  <div
-                    key={routine.id}
-                    className="bg-slate-900 border border-slate-850 hover:border-slate-700 rounded-2xl p-5 flex flex-col justify-between group transition-all hover:shadow-xl hover:shadow-lime-500/5"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-lime-400 group-hover:bg-lime-400 group-hover:text-slate-950 transition">
-                          <Clipboard className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase font-mono tracking-wider bg-slate-950 px-2 py-1 rounded-md border border-slate-850">
-                          {routine.exercises.length} exerc. • {totalSets} séries
-                        </span>
-                      </div>
- 
-                      <div className="space-y-1">
+            {/* Routines Grid - Sorted: Today's routine first in destaque, then Monday to Saturday */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...routines]
+                .sort((a, b) => {
+                  const todayDay = new Date().getDay();
+                  const isTodayA = a.dayOfWeek === todayDay;
+                  const isTodayB = b.dayOfWeek === todayDay;
+                  if (isTodayA && !isTodayB) return -1;
+                  if (!isTodayA && isTodayB) return 1;
+                  const dayOrder = (d?: number | null) => {
+                    if (d === undefined || d === null) return 99;
+                    if (d === 0) return 7;
+                    return d;
+                  };
+                  return dayOrder(a.dayOfWeek) - dayOrder(b.dayOfWeek);
+                })
+                .map((routine) => {
+                  const isToday = routine.dayOfWeek === new Date().getDay();
+                  const totalSets = routine.exercises.reduce((acc, c) => acc + c.sets.length, 0);
+
+                  return (
+                    <div
+                      key={routine.id}
+                      className={`rounded-[20px] p-5 flex flex-col justify-between transition-all border relative ${
+                        isToday
+                          ? 'bg-[#1C1F26] border-[#7C6CFF]/50 shadow-md'
+                          : 'bg-[#15171C] hover:bg-[#181A20] border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.12)]'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        {/* Header: Day Badge & 3-dots Menu */}
                         <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-white text-base leading-tight truncate mr-2">{routine.name}</h3>
-                          <div className="flex gap-1.5 shrink-0 items-center">
+                          <div className="flex items-center gap-2">
+                            {isToday ? (
+                              <span className="text-[11px] font-semibold text-[#7C6CFF] bg-[#7C6CFF]/15 border border-[#7C6CFF]/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#7C6CFF]" />
+                                Hoje · {routine.dayOfWeek !== undefined && routine.dayOfWeek !== null ? DAYS_OF_WEEK_LABELS[routine.dayOfWeek] : ''}
+                              </span>
+                            ) : routine.dayOfWeek !== undefined && routine.dayOfWeek !== null ? (
+                              <span className="text-[11px] text-[#9AA1AD] bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] px-2.5 py-0.5 rounded-full font-medium">
+                                {DAYS_OF_WEEK_LABELS[routine.dayOfWeek]}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-[#9AA1AD] bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] px-2.5 py-0.5 rounded-full font-medium">
+                                Avulso
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Three-dots menu */}
+                          <div className="relative">
                             {deletingRoutineId === routine.id ? (
-                              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-850">
+                              <div className="flex items-center gap-1 bg-[#1C1F26] p-1 rounded-[10px] border border-[rgba(255,255,255,0.1)]">
+                                <span className="text-[11px] text-[#FF6B6B] px-1 font-medium">Excluir?</span>
                                 <button
                                   id={`btn-confirm-delete-routine-${routine.id}`}
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     onDeleteRoutine?.(routine.id);
                                     setDeletingRoutineId(null);
                                   }}
-                                  className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded text-[9px] uppercase tracking-wider transition"
+                                  className="px-2 py-0.5 bg-[#FF6B6B] text-[#0E0F13] font-semibold rounded-[6px] text-[11px] transition"
                                 >
                                   Sim
                                 </button>
                                 <button
                                   id={`btn-cancel-delete-routine-${routine.id}`}
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setDeletingRoutineId(null);
                                   }}
-                                  className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded text-[9px] uppercase tracking-wider transition"
+                                  className="px-2 py-0.5 bg-[#15171C] text-[#9AA1AD] font-medium rounded-[6px] text-[11px] transition"
                                 >
                                   Não
                                 </button>
@@ -678,88 +726,127 @@ export default function WorkoutLog({
                             ) : (
                               <>
                                 <button
-                                  id={`btn-edit-routine-${routine.id}`}
+                                  id={`btn-menu-routine-${routine.id}`}
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleEditRoutineTrigger(routine);
+                                    setOpenMenuRoutineId(openMenuRoutineId === routine.id ? null : routine.id);
                                   }}
-                                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-lime-400 rounded transition"
-                                  title="Editar Rotina"
+                                  className="p-1.5 text-[#9AA1AD] hover:text-[#F2F3F5] hover:bg-[#1C1F26] rounded-lg transition cursor-pointer"
+                                  title="Opções da rotina"
                                 >
-                                  <Edit className="w-3.5 h-3.5 animate-none" />
+                                  <MoreVertical className="w-4 h-4" />
                                 </button>
-                                <button
-                                  id={`btn-delete-routine-${routine.id}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeletingRoutineId(routine.id);
-                                  }}
-                                  className="p-1 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded transition"
-                                  title="Excluir Rotina"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 animate-none" />
-                                </button>
+
+                                {openMenuRoutineId === routine.id && (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute right-0 top-8 z-20 w-44 bg-[#1C1F26] border border-[rgba(255,255,255,0.12)] rounded-[14px] shadow-xl py-1 space-y-0.5 text-left text-[13px]"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuRoutineId(null);
+                                        handleEditRoutineTrigger(routine);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-[#F2F3F5] hover:bg-[#15171C] flex items-center gap-2 transition"
+                                    >
+                                      <Edit className="w-3.5 h-3.5 text-[#9AA1AD]" />
+                                      <span>Editar rotina</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuRoutineId(null);
+                                        setShowPrintModal(true);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-[#F2F3F5] hover:bg-[#15171C] flex items-center gap-2 transition"
+                                    >
+                                      <Printer className="w-3.5 h-3.5 text-[#9AA1AD]" />
+                                      <span>Imprimir ficha</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenMenuRoutineId(null);
+                                        setDeletingRoutineId(routine.id);
+                                      }}
+                                      className="w-full px-3 py-2 text-left text-[#FF6B6B] hover:bg-[#15171C] flex items-center gap-2 transition"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Excluir rotina</span>
+                                    </button>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{routine.description}</p>
-                        {routine.dayOfWeek !== undefined && routine.dayOfWeek !== null && (
-                          <div className="flex items-center gap-1.5 mt-2 bg-lime-500/10 border border-lime-500/20 px-2.5 py-1 rounded-xl w-fit">
-                            <span className="w-1.5 h-1.5 bg-lime-400 rounded-full animate-pulse"></span>
-                            <span className="text-[10px] text-lime-400 font-bold uppercase tracking-wider font-mono">
-                              {DAYS_OF_WEEK_LABELS[routine.dayOfWeek]}
-                            </span>
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Exercises Mini List */}
-                      <div className="pt-2 border-t border-slate-850/80 space-y-1 text-left">
-                        <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios inclusos:</span>
-                        <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
-                          {routine.exercises.map((item, id) => {
-                            const exName = availableExercises.find(e => e.id === item.exerciseId)?.name || "Sem nome";
-                            return (
-                              <div key={id} className="text-[11px] text-slate-300 flex flex-col gap-0.5 border-b border-slate-850/30 pb-1 last:border-0 last:pb-0">
-                                <div className="flex justify-between items-center">
-                                  <span className="truncate pr-2 font-medium text-slate-200 text-left">• {exName}</span>
-                                  <span className="text-slate-500 shrink-0 font-semibold text-[10px] flex items-center gap-1">
-                                    {item.sets.length}x <span className="text-slate-600 font-normal">|</span> {item.restTimer || 90}s⏱️
+                        {/* Routine Title and Description */}
+                        <div>
+                          <h3 className="font-semibold text-[#F2F3F5] text-[17px] sm:text-[18px] leading-tight truncate">
+                            {routine.name}
+                          </h3>
+                          {routine.description && (
+                            <p className="text-[13px] text-[#9AA1AD] mt-1 line-clamp-1 leading-relaxed">
+                              {routine.description}
+                            </p>
+                          )}
+                          <p className="text-[12px] text-[#6B7280] mt-1 tabular-nums">
+                            {routine.exercises.length} exercícios · cerca de {Math.round(routine.exercises.length * 8)} min
+                          </p>
+                        </div>
+
+                        {/* Exercises preview list */}
+                        <div className="pt-2 border-t border-[rgba(255,255,255,0.07)] space-y-1 text-left">
+                          <span className="text-[11px] text-[#6B7280] font-medium block">Exercícios inclusos:</span>
+                          <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                            {routine.exercises.slice(0, 4).map((item, id) => {
+                              const exName = availableExercises.find(e => e.id === item.exerciseId)?.name || item.exerciseId;
+                              return (
+                                <div key={id} className="text-[12px] text-[#9AA1AD] flex items-center justify-between">
+                                  <span className="truncate pr-2 text-[#F2F3F5]">• {exName}</span>
+                                  <span className="text-[#6B7280] text-[11px] tabular-nums shrink-0">
+                                    {item.sets.length}x
                                   </span>
                                 </div>
-                                {(item.progressionNotes || item.observations) && (
-                                  <div className="pl-3.5 flex flex-wrap gap-1 text-[9px]">
-                                    {item.progressionNotes && <span className="text-lime-500 bg-lime-500/10 px-1 rounded truncate max-w-[130px]" title={item.progressionNotes}>📈 {item.progressionNotes}</span>}
-                                    {item.observations && <span className="text-sky-400 bg-sky-500/10 px-1 rounded truncate max-w-[130px]" title={item.observations}>📝 {item.observations}</span>}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                            {routine.exercises.length > 4 && (
+                              <span className="text-[11px] text-[#6B7280] block pt-0.5">
+                                + {routine.exercises.length - 4} outros exercícios
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <button
-                      id={`btn-start-routine-${routine.id}`}
-                      onClick={() => handleStartRoutine(routine)}
-                      className="w-full mt-4 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-950 hover:bg-lime-500 text-slate-300 hover:text-slate-950 text-xs font-bold transition border border-slate-850 hover:border-lime-500 active:scale-95"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Iniciar Esta Rotina</span>
-                    </button>
-                  </div>
-                );
-              })}
+                      {/* Primary Action Button */}
+                      <button
+                        id={`btn-start-routine-${routine.id}`}
+                        type="button"
+                        onClick={() => handleStartRoutine(routine)}
+                        className={`w-full mt-4 min-h-[48px] rounded-[14px] font-semibold text-[14px] flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer ${
+                          isToday
+                            ? 'bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-[#F2F3F5] shadow-sm'
+                            : 'bg-[#1C1F26] hover:bg-[#7C6CFF] text-[#F2F3F5] hover:text-white border border-[rgba(255,255,255,0.07)] hover:border-transparent'
+                        }`}
+                      >
+                        <Play className="w-4 h-4 fill-current" />
+                        <span>Começar</span>
+                      </button>
+                    </div>
+                  );
+                })}
             </div>
 
             {/* Quick tips */}
             <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex items-start gap-3">
               <span className="text-base">ℹ️</span>
-              <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
-                <p className="font-semibold text-slate-300">Como funciona o log estilo Hevy?</p>
-                <p>Ao iniciar o treino, configure as cargas e reps para cada série. À medida que completar as séries, clique no botão de <strong>Check (Concluído)</strong> para registrar as marcas e dar início ao temporizador de descanso automático. Depois de terminar todos os exercícios, clique em <strong>Finalizar</strong>.</p>
+              <div className="text-[13px] text-[#9AA1AD] space-y-1 leading-relaxed">
+                <p className="font-medium text-[#F2F3F5]">Como funciona o treino?</p>
+                <p>Ao iniciar o treino, configure as cargas e reps para cada série. Ao completar as séries, toque no botão de <strong>Check</strong> para registrar as marcas e iniciar o descanso automático. Ao terminar, clique em <strong>Finalizar treino</strong>.</p>
               </div>
             </div>
           </motion.div>
@@ -772,31 +859,31 @@ export default function WorkoutLog({
             exit={{ opacity: 0 }}
             className="space-y-6"
           >
-            {/* Active Header Panel */}
-            <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Sticky Active Header Panel */}
+            <div className="sticky top-0 z-30 bg-[#15171C]/95 backdrop-blur-md border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-lime-400 animate-pulse" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7C6CFF] animate-pulse" />
                   <input
                     id="input-active-workout-name"
                     type="text"
                     value={activeWorkout.name}
                     onChange={(e) => onUpdateActiveWorkout({ ...activeWorkout, name: e.target.value })}
-                    className="font-bold text-white text-lg bg-transparent border-b border-transparent hover:border-slate-700 focus:border-lime-500 focus:outline-none transition pb-0.5 tracking-tight font-sans"
+                    className="font-semibold text-[#F2F3F5] text-[18px] sm:text-[20px] bg-transparent border-b border-transparent hover:border-[rgba(255,255,255,0.1)] focus:border-[#7C6CFF] focus:outline-none transition pb-0.5 tracking-tight font-sans"
                     title="Clique para editar o título do seu treino"
                   />
                 </div>
                 
-                <div className="flex flex-wrap gap-4 text-xs text-slate-300">
-                  <span className="font-mono">⏱️ Tempo decorrido: <strong className="text-lime-400 font-bold">{workoutDurationStr}</strong></span>
-                  <span>🏋️ Exercícios: <strong className="text-white">{activeWorkout.exercises.length}</strong></span>
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[13px] text-[#9AA1AD]">
+                  <span>⏱️ Tempo: <strong className="text-[#7C6CFF] font-semibold tabular-nums">{workoutDurationStr}</strong></span>
+                  <span>🏋️ Exercícios: <strong className="text-[#F2F3F5]">{activeWorkout.exercises.length}</strong></span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400">Descanso Automático:</span>
+                    <span className="text-[#6B7280]">Descanso:</span>
                     <select
                       id="select-rest-preference"
                       value={restPreference}
                       onChange={(e) => setRestPreference(parseInt(e.target.value))}
-                      className="bg-slate-950 border border-slate-850 rounded px-1.5 py-0.5 text-xs text-white outline-none focus:border-lime-500"
+                      className="bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] rounded-[10px] px-2 py-1 text-[12px] text-[#F2F3F5] outline-none focus:border-[#7C6CFF]"
                     >
                       <option value="30">30 seg</option>
                       <option value="60">1 min</option>
@@ -813,17 +900,19 @@ export default function WorkoutLog({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   id="btn-cancel-workout"
+                  type="button"
                   onClick={() => setShowCancelConfirm(true)}
-                  className="px-4 py-2 bg-slate-950 hover:bg-red-500/10 text-red-400 border border-slate-850 hover:border-red-500/25 rounded-xl text-xs font-semibold transition active:scale-95"
+                  className="min-h-[44px] px-3.5 bg-[#1C1F26] hover:bg-[#222630] text-[#FF6B6B] border border-[rgba(255,255,255,0.07)] rounded-[12px] text-[13px] font-medium transition active:scale-95 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   id="btn-trigger-finish"
+                  type="button"
                   onClick={() => setShowFinishConfirm(true)}
-                  className="px-5 py-2 bg-lime-500 hover:bg-lime-600 text-slate-950 rounded-xl text-xs font-bold font-sans transition shadow-lg shadow-lime-500/10 active:scale-95"
+                  className="min-h-[44px] px-5 bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-[#F2F3F5] rounded-[12px] text-[14px] font-semibold transition shadow-sm active:scale-95 cursor-pointer"
                 >
-                  Finalizar Treino
+                  Finalizar treino
                 </button>
               </div>
             </div>
@@ -831,19 +920,20 @@ export default function WorkoutLog({
             {/* Exercises List in current workout */}
             <div className="space-y-4">
               {activeWorkout.exercises.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 bg-slate-900/60 border border-dashed border-slate-800 rounded-2xl text-center space-y-4">
-                  <Dumbbell className="w-12 h-12 text-slate-600 animate-bounce" />
+                <div className="flex flex-col items-center justify-center p-12 bg-[#15171C] border border-dashed border-[rgba(255,255,255,0.12)] rounded-[20px] text-center space-y-4">
+                  <Dumbbell className="w-12 h-12 text-[#6B7280] animate-bounce" />
                   <div className="space-y-1">
-                    <h3 className="font-bold text-white text-sm">Seu treino está vazio</h3>
-                    <p className="text-xs text-slate-400 max-w-xs">Adicione pelo menos um de seus exercícios na catalogação para começar o registro das marcas.</p>
+                    <h3 className="font-semibold text-[#F2F3F5] text-[16px]">Seu treino está vazio</h3>
+                    <p className="text-[13px] text-[#9AA1AD] max-w-xs">Adicione pelo menos um exercício para começar a registrar suas séries.</p>
                   </div>
                   <button
                     id="btn-add-first-exercise"
+                    type="button"
                     onClick={() => setShowExerciseModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-lime-500 text-slate-950 hover:bg-lime-600 rounded-lg text-xs font-bold transition"
+                    className="min-h-[44px] px-4 bg-[#7C6CFF] text-white hover:bg-[#8E80FF] rounded-[12px] text-[13px] font-semibold transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3px]" />
-                    <span>Adicionar Exercício</span>
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Adicionar exercício</span>
                   </button>
                 </div>
               ) : (
@@ -854,21 +944,21 @@ export default function WorkoutLog({
                   return (
                     <div
                       key={item.exerciseId}
-                      className="bg-slate-900 border border-slate-850 rounded-2xl p-4 space-y-3 hover:border-slate-800 transition"
+                      className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4 sm:p-5 space-y-3 transition"
                     >
                       {/* Exercise card header */}
-                      <div className="flex items-center justify-between border-b border-slate-850 pb-2">
-                        <div className="space-y-0.5 text-left">
-                          <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                            <span className="text-lime-400 font-mono">#{exIdx + 1}</span>
+                      <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.07)] pb-3">
+                        <div className="space-y-1 text-left">
+                          <h4 className="font-semibold text-[#F2F3F5] text-[16px] sm:text-[17px] flex items-center gap-2">
+                            <span className="text-[#7C6CFF] tabular-nums font-mono text-[14px]">#{exIdx + 1}</span>
                             {details?.name || "Sem nome"}
                           </h4>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 mt-1">
-                            <span className="px-1.5 py-0.5 bg-slate-950 rounded border border-slate-850 font-semibold">{details?.targetMuscle}</span>
-                            <span className="px-1.5 py-0.5 bg-slate-950 rounded border border-slate-850">{details?.equipment}</span>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#9AA1AD]">
+                            <span className="px-2 py-0.5 bg-[#1C1F26] rounded-[8px] border border-[rgba(255,255,255,0.07)] font-medium">{details?.targetMuscle}</span>
+                            <span className="px-2 py-0.5 bg-[#1C1F26] rounded-[8px] border border-[rgba(255,255,255,0.07)]">{details?.equipment}</span>
                             
                             {/* Exercise-specific Rest Timer input */}
-                            <div className="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-850">
+                            <div className="flex items-center gap-1 bg-[#1C1F26] px-2 py-0.5 rounded-[8px] border border-[rgba(255,255,255,0.07)]">
                               <span>⏱️ Descanso:</span>
                               <input
                                 type="number"
@@ -884,7 +974,7 @@ export default function WorkoutLog({
                                     )
                                   });
                                 }}
-                                className="bg-transparent border-none text-lime-400 hover:text-lime-300 font-bold w-10 text-center font-mono outline-none"
+                                className="bg-transparent border-none text-[#7C6CFF] font-semibold w-10 text-center font-mono outline-none"
                                 title="Tempo de descanso personalizado para este exercício"
                               />
                               <span>s</span>
@@ -894,10 +984,10 @@ export default function WorkoutLog({
                               <button
                                 type="button"
                                 onClick={() => handlePredefinedWeightsAndRepsFill(item.exerciseId)}
-                                className="text-[9px] text-lime-400 hover:underline flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-950 rounded border border-slate-850 transition"
-                                title="Preenche as caixas de texto com os valores do último treino"
+                                className="text-[11px] text-[#7C6CFF] hover:underline flex items-center gap-1 px-2 py-0.5 bg-[#1C1F26] rounded-[8px] border border-[rgba(255,255,255,0.07)] transition cursor-pointer"
+                                title="Preenche as caixas com os valores do último treino"
                               >
-                                ⚡ Autocompletar Anterior
+                                ⚡ Usar carga anterior
                               </button>
                             )}
                           </div>
@@ -905,8 +995,9 @@ export default function WorkoutLog({
 
                         <button
                           id={`btn-remove-exercise-${item.exerciseId}`}
+                          type="button"
                           onClick={() => handleRemoveExercise(item.exerciseId)}
-                          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-950 rounded-lg transition"
+                          className="p-2 text-[#6B7280] hover:text-[#FF6B6B] hover:bg-[#1C1F26] rounded-[10px] transition cursor-pointer"
                           title="Remover exercício do treino"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -915,21 +1006,21 @@ export default function WorkoutLog({
 
                       {/* Progression & Observations orientational fields */}
                       {(item.progressionNotes || item.observations) && (
-                        <div className="bg-slate-950/55 rounded-xl border border-slate-850 p-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed text-left">
+                        <div className="bg-[#1C1F26]/70 rounded-[14px] border border-[rgba(255,255,255,0.07)] p-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px] leading-relaxed text-left">
                           {item.progressionNotes && (
                             <div className="space-y-0.5">
-                              <span className="text-[10px] text-lime-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                📈 Progressão Definida
+                              <span className="text-[11px] text-[#7C6CFF] font-semibold flex items-center gap-1">
+                                Progressão do ciclo
                               </span>
-                              <p className="text-slate-300 font-medium whitespace-pre-wrap">{item.progressionNotes}</p>
+                              <p className="text-[#F2F3F5] font-medium whitespace-pre-wrap">{item.progressionNotes}</p>
                             </div>
                           )}
                           {item.observations && (
                             <div className="space-y-0.5">
-                              <span className="text-[10px] text-sky-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                📝 Observações / Dicas
+                              <span className="text-[11px] text-[#2DD4BF] font-semibold flex items-center gap-1">
+                                Observações
                               </span>
-                              <p className="text-slate-350 font-medium whitespace-pre-wrap">{item.observations}</p>
+                              <p className="text-[#9AA1AD] whitespace-pre-wrap">{item.observations}</p>
                             </div>
                           )}
                         </div>
@@ -937,16 +1028,16 @@ export default function WorkoutLog({
 
                       {/* Sets Table */}
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs min-w-[320px]">
+                        <table className="w-full text-left text-[13px] min-w-[340px]">
                           <thead>
-                            <tr className="text-[10px] text-slate-400 font-bold uppercase tracking-wider border-b border-slate-850">
-                              <th className="py-2 pr-2 w-14 text-center">Série</th>
-                              <th className="py-2 px-2 w-28 text-center">Tipo</th>
-                              <th className="py-2 px-2 w-32 text-center">Anterior</th>
-                              <th className="py-2 px-2 w-28 text-center">Carga (kg)</th>
-                              <th className="py-2 px-2 w-24 text-center">Reps</th>
-                              <th className="py-2 pl-2 w-16 text-center">Status</th>
-                              <th className="py-2 w-10 text-center"></th>
+                            <tr className="text-[11px] text-[#6B7280] font-medium border-b border-[rgba(255,255,255,0.07)]">
+                              <th className="py-2.5 pr-2 w-12 text-center">Série</th>
+                              <th className="py-2.5 px-2 w-28 text-center">Tipo</th>
+                              <th className="py-2.5 px-2 w-28 text-center">Anterior</th>
+                              <th className="py-2.5 px-2 w-28 text-center">Carga (kg)</th>
+                              <th className="py-2.5 px-2 w-24 text-center">Reps</th>
+                              <th className="py-2.5 pl-2 w-16 text-center">Status</th>
+                              <th className="py-2.5 w-10 text-center"></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -956,23 +1047,23 @@ export default function WorkoutLog({
                               return (
                                 <tr
                                   key={s.id}
-                                  className={`border-b border-slate-850/40 transition-colors ${
-                                    s.completed ? 'bg-lime-500/5' : 'hover:bg-slate-950/20'
+                                  className={`border-b border-[rgba(255,255,255,0.04)] transition-colors ${
+                                    s.completed ? 'bg-[#7C6CFF]/5' : 'hover:bg-[#1C1F26]/30'
                                   }`}
                                 >
                                   {/* Set index count */}
-                                  <td className="py-1.5 pr-2 font-mono font-bold text-center text-slate-200">
+                                  <td className="py-2 pr-2 font-mono font-medium text-center text-[#F2F3F5] text-[14px]">
                                     {idx + 1}
                                   </td>
                                   
                                   {/* Set Type Dropdown */}
-                                  <td className="py-1.5 px-2">
+                                  <td className="py-2 px-2">
                                     <div className="flex justify-center">
                                       <select
                                         id={`select-set-type-${s.id}`}
                                         value={s.type}
                                         onChange={(e) => handleUpdateSetType(item.exerciseId, s.id, e.target.value as SetType)}
-                                        className="bg-slate-950 border border-slate-850 hover:border-slate-750 text-slate-300 font-semibold rounded px-1.5 py-1 text-center text-[10px] uppercase outline-none focus:border-lime-500 cursor-pointer"
+                                        className="bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] rounded-[10px] px-2 py-1.5 text-center text-[11px] font-medium outline-none focus:border-[#7C6CFF] cursor-pointer"
                                       >
                                         <option value="Aquecimento">Aquecimento</option>
                                         <option value="Adaptação">Adaptação</option>
@@ -982,70 +1073,72 @@ export default function WorkoutLog({
                                   </td>
 
                                   {/* Previous performance display */}
-                                  <td className="py-1.5 px-2 text-center text-slate-500 font-mono tracking-tight text-[11px]">
+                                  <td className="py-2 px-2 text-center text-[#6B7280] font-mono text-[12px] tabular-nums">
                                     {prev ? `${prev.weight}kg × ${prev.reps}` : '--'}
                                   </td>
 
                                   {/* Weight Input */}
-                                  <td className="py-1.5 px-2 text-center">
+                                  <td className="py-2 px-2 text-center">
                                     <input
                                       id={`input-weight-${s.id}`}
                                       type="number"
                                       step="0.5"
                                       min="0"
-                                      placeholder="kg"
+                                      placeholder="0"
                                       value={s.weight === null ? '' : s.weight}
                                       onChange={(e) => handleSetFieldChange(item.exerciseId, s.id, 'weight', e.target.value)}
                                       disabled={s.completed}
-                                      className="w-20 bg-slate-950 border border-slate-850 disabled:bg-slate-900 disabled:text-slate-400 font-semibold font-mono text-center text-white py-1.5 rounded-lg outline-none focus:border-lime-500"
+                                      className="w-24 h-12 bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] focus:border-[#7C6CFF] disabled:bg-[#15171C] disabled:text-[#6B7280] font-semibold font-mono text-center text-[#F2F3F5] text-[16px] rounded-[14px] outline-none tabular-nums transition"
                                     />
                                   </td>
 
                                   {/* Reps Input */}
-                                  <td className="py-1.5 px-2 text-center">
+                                  <td className="py-2 px-2 text-center">
                                     <input
                                       id={`input-reps-${s.id}`}
                                       type="text"
-                                      placeholder="reps"
+                                      placeholder="0"
                                       value={s.reps === null ? '' : s.reps}
                                       onChange={(e) => handleSetFieldChange(item.exerciseId, s.id, 'reps', e.target.value)}
                                       disabled={s.completed}
-                                      className="w-16 bg-slate-950 border border-slate-850 disabled:bg-slate-900 disabled:text-slate-400 font-semibold font-mono text-center text-white py-1.5 rounded-lg outline-none focus:border-lime-500"
+                                      className="w-20 h-12 bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] focus:border-[#7C6CFF] disabled:bg-[#15171C] disabled:text-[#6B7280] font-semibold font-mono text-center text-[#F2F3F5] text-[16px] rounded-[14px] outline-none tabular-nums transition"
                                     />
                                   </td>
 
-                                  {/* Checked complete status */}
-                                  <td className="py-1.5 px-2 text-center">
+                                  {/* Check Complete Button with at least 48px hit area */}
+                                  <td className="py-2 px-2 text-center">
                                     <div className="flex justify-center">
                                       <button
                                         id={`btn-toggle-set-${s.id}`}
                                         type="button"
                                         onClick={() => handleToggleSetCompleted(item.exerciseId, s.id)}
-                                        className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all ${
+                                        className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-[14px] transition-all cursor-pointer ${
                                           s.completed
-                                            ? 'bg-lime-500 text-slate-950 shadow-md shadow-lime-500/25 border border-lime-500'
-                                            : 'bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white'
+                                            ? 'bg-[#7C6CFF] text-white shadow-sm'
+                                            : 'bg-[#1C1F26] hover:bg-[#222630] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD]'
                                         }`}
+                                        title={s.completed ? 'Marcar como não concluído' : 'Marcar como concluído'}
                                       >
                                         {s.completed ? (
-                                          <Check className="w-4 h-4 stroke-[3px]" />
+                                          <Check className="w-5 h-5 stroke-[2.5]" />
                                         ) : (
-                                          <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                                          <span className="w-2.5 h-2.5 rounded-full border border-[#6B7280]" />
                                         )}
                                       </button>
                                     </div>
                                   </td>
 
                                   {/* Remove set button */}
-                                  <td className="py-1.5 text-center">
+                                  <td className="py-2 text-center">
                                     <button
                                       id={`btn-remove-set-${s.id}`}
+                                      type="button"
                                       onClick={() => handleRemoveSet(item.exerciseId, s.id)}
                                       disabled={item.sets.length <= 1}
-                                      className="text-slate-600 hover:text-red-400 hover:bg-slate-950 disabled:opacity-20 p-1 rounded transition"
+                                      className="text-[#6B7280] hover:text-[#FF6B6B] hover:bg-[#1C1F26] disabled:opacity-20 p-2 rounded-lg transition cursor-pointer"
                                       title="Remover série"
                                     >
-                                      <X className="w-3.5 h-3.5" />
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </td>
                                 </tr>
@@ -1055,31 +1148,33 @@ export default function WorkoutLog({
                         </table>
                       </div>
 
-                      {/* Add Set button */}
+                      {/* Add Set Button */}
                       <button
                         id={`btn-add-set-${item.exerciseId}`}
+                        type="button"
                         onClick={() => handleAddSet(item.exerciseId)}
-                        className="w-full py-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 rounded-xl text-xs font-semibold transition"
+                        className="w-full py-2.5 rounded-[12px] bg-[#1C1F26] hover:bg-[#222630] text-[#9AA1AD] hover:text-[#F2F3F5] text-[13px] font-medium border border-[rgba(255,255,255,0.07)] transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Adicionar Série</span>
+                        <Plus className="w-4 h-4" />
+                        <span>Adicionar série</span>
                       </button>
                     </div>
                   );
                 })
               )}
-            </div>
 
-            {/* Action panel at the bottom of the exercises catalog */}
-            <div className="flex gap-3 justify-center items-center pt-3">
-              <button
-                id="btn-trigger-add-exercise-modal"
-                onClick={() => setShowExerciseModal(true)}
-                className="flex items-center gap-1.5 px-6 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-lime-400 hover:text-lime-300 rounded-2xl font-bold font-sans text-sm transition shadow-lg"
-              >
-                <Plus className="w-4 h-4 stroke-[3.5px]" />
-                <span>Adicionar Exercício</span>
-              </button>
+              {/* Add Exercise Floating Button */}
+              {activeWorkout.exercises.length > 0 && (
+                <button
+                  id="btn-add-exercise-to-active"
+                  type="button"
+                  onClick={() => setShowExerciseModal(true)}
+                  className="w-full min-h-[48px] rounded-[16px] bg-[#15171C] hover:bg-[#1C1F26] border border-dashed border-[rgba(255,255,255,0.12)] hover:border-[#7C6CFF] text-[#F2F3F5] font-medium text-[14px] flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>Adicionar outro exercício</span>
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -1122,12 +1217,12 @@ export default function WorkoutLog({
                     value={exerciseSearch}
                     onChange={(e) => setExerciseSearch(e.target.value)}
                     placeholder="Buscar por nome ou músculo..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-white text-sm outline-none focus:border-lime-500 font-sans"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] pl-9 pr-4 py-2 text-[#F2F3F5] text-sm outline-none focus:border-[#7C6CFF] font-sans"
                   />
                   {exerciseSearch && (
                     <button
                       onClick={() => setExerciseSearch('')}
-                      className="absolute right-3 top-3 text-slate-500 hover:text-white"
+                      className="absolute right-3 top-3 text-[#9AA1AD] hover:text-[#F2F3F5]"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -1141,10 +1236,10 @@ export default function WorkoutLog({
                       key={muscle}
                       type="button"
                       onClick={() => setSelectedMuscleFilter(muscle)}
-                      className={`px-3 py-1 bg-slate-950 rounded-full text-xs font-semibold whitespace-nowrap border shrink-0 transition ${
+                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border shrink-0 transition cursor-pointer ${
                         selectedMuscleFilter === muscle
-                          ? 'bg-lime-500 border-lime-500 text-slate-950'
-                          : 'border-slate-850 text-slate-400 hover:text-white hover:bg-slate-900'
+                          ? 'bg-[#7C6CFF] border-[#7C6CFF] text-white'
+                          : 'bg-[#1C1F26] border-[rgba(255,255,255,0.06)] text-[#9AA1AD] hover:text-[#F2F3F5] hover:bg-[#252a35]'
                       }`}
                     >
                       {muscle}
@@ -1154,10 +1249,10 @@ export default function WorkoutLog({
               </div>
 
               {/* Exercise Items List Container */}
-              <div className="p-2 space-y-1 overflow-y-auto max-h-[40vh] bg-slate-950/20">
+              <div className="p-2 space-y-1 overflow-y-auto max-h-[40vh] bg-[#15171C]">
                 {filteredExercises.length === 0 ? (
                   <div className="text-center py-10">
-                    <span className="text-xs text-slate-500 italic">Nenhum exercício encontrado para a busca.</span>
+                    <span className="text-xs text-[#9AA1AD] italic">Nenhum exercício encontrado para a busca.</span>
                   </div>
                 ) : (
                   filteredExercises.map((ex) => {
@@ -1169,16 +1264,16 @@ export default function WorkoutLog({
                         id={`btn-select-exercise-item-${ex.id}`}
                         onClick={() => handleAddExerciseToWorkout(ex)}
                         disabled={isAdded}
-                        className={`w-full text-left p-3 rounded-xl border flex items-center justify-between transition ${
+                        className={`w-full text-left p-3 rounded-[12px] border flex items-center justify-between transition cursor-pointer ${
                           isAdded
-                            ? 'bg-slate-900/50 border-slate-850/40 opacity-40 cursor-not-allowed'
-                            : 'bg-slate-900 border-slate-850 hover:bg-slate-800 hover:border-slate-700'
+                            ? 'bg-[#15171C]/50 border-[rgba(255,255,255,0.04)] opacity-40 cursor-not-allowed'
+                            : 'bg-[#1C1F26] border-[rgba(255,255,255,0.06)] hover:bg-[#252a35] hover:border-[rgba(255,255,255,0.12)]'
                         }`}
                       >
                         <div>
-                          <span className="font-bold text-white text-sm block">{ex.name}</span>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                            <span className="px-1 bg-slate-950 border border-slate-850 rounded">{ex.targetMuscle}</span>
+                          <span className="font-semibold text-[#F2F3F5] text-sm block">{ex.name}</span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[#9AA1AD] mt-0.5">
+                            <span className="px-1.5 py-0.2 bg-[#15171C] border border-[rgba(255,255,255,0.06)] rounded-[6px]">{ex.targetMuscle}</span>
                             <span>•</span>
                             <span>{ex.equipment}</span>
                           </div>
@@ -1186,11 +1281,11 @@ export default function WorkoutLog({
 
                         <div className="shrink-0">
                           {isAdded ? (
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/15">
+                            <span className="text-[10px] text-[#4ADE80] font-medium bg-[#4ADE80]/15 px-2 py-0.5 rounded-[6px] border border-[#4ADE80]/20">
                               Incluso
                             </span>
                           ) : (
-                            <span className="text-[10px] text-lime-400 font-bold bg-lime-500/10 px-2 py-0.5 rounded border border-lime-500/15 group-hover:bg-lime-500 group-hover:text-slate-950 transition">
+                            <span className="text-[11px] text-[#7C6CFF] font-medium bg-[#7C6CFF]/15 px-2.5 py-1 rounded-[8px] border border-[#7C6CFF]/20 group-hover:bg-[#7C6CFF] group-hover:text-white transition">
                               Adicionar
                             </span>
                           )}
@@ -1214,43 +1309,43 @@ export default function WorkoutLog({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-white space-y-4"
+              className="bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] shadow-2xl w-full max-w-md overflow-hidden p-6 text-[#F2F3F5] space-y-4"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-lime-500/15 rounded-xl flex items-center justify-center text-lime-400">
+                <div className="w-10 h-10 bg-[#7C6CFF]/15 rounded-[12px] flex items-center justify-center text-[#7C6CFF]">
                   <Award className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-lg font-sans">Finalizar Treino</h3>
-                  <p className="text-xs text-slate-400">Sua sessão de hoje está pronta para ser salva no diário.</p>
+                  <h3 className="font-semibold text-[#F2F3F5] text-lg font-sans">Finalizar Treino</h3>
+                  <p className="text-xs text-[#9AA1AD]">Sua sessão de hoje está pronta para ser salva no diário.</p>
                 </div>
               </div>
 
               {/* Session comments / notes */}
               <div className="space-y-1.5 pt-2">
-                <label className="text-xs text-slate-300 font-semibold block">Notas e Sentimento sobre o Treino</label>
+                <label className="text-xs text-[#9AA1AD] font-medium block">Notas e Sentimento sobre o Treino</label>
                 <textarea
                   id="textarea-workout-comments"
                   rows={3}
                   value={workoutComments}
                   onChange={(e) => setWorkoutComments(e.target.value)}
                   placeholder="ex: Foco total, aumentei 2kg no agachamento reto na última série. Rendimento fantástico!"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-lime-500"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-3 text-sm text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF]"
                 />
               </div>
 
               {/* Completed statistics brief */}
-              <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2">
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Métricas Registradas</span>
+              <div className="bg-[#1C1F26] p-4 border border-[rgba(255,255,255,0.05)] rounded-[14px] space-y-2">
+                <span className="text-[10px] text-[#9AA1AD] uppercase font-semibold tracking-wider">Métricas Registradas</span>
                 
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Tempo de Duração:</span>
-                  <span className="font-mono text-white font-bold">{workoutDurationStr}</span>
+                  <span className="text-[#9AA1AD]">Tempo de Duração:</span>
+                  <span className="text-[#F2F3F5] font-semibold tabular-nums">{workoutDurationStr}</span>
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400 font-sans">Séries Ativas Realizadas:</span>
-                  <span className="font-mono text-lime-400 font-extrabold">
+                  <span className="text-[#9AA1AD]">Séries Concluídas:</span>
+                  <span className="text-[#7C6CFF] font-semibold tabular-nums">
                     {activeWorkout?.exercises.reduce((acc, curr) => acc + curr.sets.filter(s => s.completed).length, 0) || 0}
                   </span>
                 </div>
@@ -1262,7 +1357,7 @@ export default function WorkoutLog({
                   id="btn-confirm-cancel-finish"
                   type="button"
                   onClick={() => setShowFinishConfirm(false)}
-                  className="flex-1 py-2 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 hover:text-white transition text-xs font-semibold"
+                  className="flex-1 min-h-[44px] rounded-[12px] bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] hover:text-[#F2F3F5] transition text-xs font-medium cursor-pointer"
                 >
                   Voltar
                 </button>
@@ -1273,7 +1368,7 @@ export default function WorkoutLog({
                     onFinishWorkout(workoutComments);
                     setShowFinishConfirm(false);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 transition text-xs font-bold font-sans shadow-lg shadow-lime-500/10"
+                  className="flex-1 min-h-[44px] rounded-[12px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white transition text-xs font-semibold shadow-md shadow-[#7C6CFF]/20 cursor-pointer"
                 >
                   Confirmar e Salvar
                 </button>
@@ -1350,10 +1445,10 @@ export default function WorkoutLog({
             >
               <div className="flex items-center justify-between border-b border-slate-850 p-5 shrink-0 bg-slate-900">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-[10px] bg-[#7C6CFF]/15 text-[#7C6CFF] flex items-center justify-center">
                     <Clipboard className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-white text-base">
+                  <h3 className="font-semibold text-[#F2F3F5] text-base">
                     {editingRoutine ? 'Editar Rotina' : 'Nova Rotina de Treino'}
                   </h3>
                 </div>
@@ -1364,7 +1459,7 @@ export default function WorkoutLog({
                     setShowRoutineFormModal(false);
                     setEditingRoutine(null);
                   }}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                  className="p-1.5 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1375,7 +1470,7 @@ export default function WorkoutLog({
                 {/* Nome, descrição e Dia da Semana */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[11px] text-slate-400 font-bold block uppercase">Nome da Rotina</label>
+                    <label className="text-[11px] text-[#9AA1AD] font-medium block">Nome da Rotina</label>
                     <input
                       id="routine-form-name"
                       type="text"
@@ -1383,22 +1478,22 @@ export default function WorkoutLog({
                       value={routineFormName}
                       onChange={(e) => setRoutineFormName(e.target.value)}
                       placeholder="Ex: Treino A - Peito, Ombros e Tríceps"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 placeholder-slate-550 outline-none focus:border-lime-500 text-xs font-semibold"
+                      className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px]"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] text-slate-400 font-bold block uppercase">Descrição</label>
+                    <label className="text-[11px] text-[#9AA1AD] font-medium block">Descrição</label>
                     <input
                       id="routine-form-description"
                       type="text"
                       value={routineFormDescription}
                       onChange={(e) => setRoutineFormDescription(e.target.value)}
                       placeholder="Ex: Foco nos exercícios básicos com progressão"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 placeholder-slate-550 outline-none focus:border-lime-500 text-xs"
+                      className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px]"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] text-slate-400 font-bold block uppercase">Dia da Semana (Agendar)</label>
+                    <label className="text-[11px] text-[#9AA1AD] font-medium block">Dia da Semana (Agendar)</label>
                     <select
                       id="routine-form-day"
                       value={routineFormDayOfWeek === null ? "" : routineFormDayOfWeek}
@@ -1406,7 +1501,7 @@ export default function WorkoutLog({
                         const val = e.target.value;
                         setRoutineFormDayOfWeek(val === "" ? null : Number(val));
                       }}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 placeholder-slate-550 outline-none focus:border-lime-500 text-xs font-semibold"
+                      className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                     >
                       <option value="">Sem dia específico</option>
                       <option value="1">Segunda-feira</option>
@@ -1421,18 +1516,18 @@ export default function WorkoutLog({
                 </div>
 
                 {/* Routine Exercises Header */}
-                <div className="border-t border-slate-850 pt-4 space-y-3">
+                <div className="border-t border-[rgba(255,255,255,0.07)] pt-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">
+                    <span className="text-[11px] text-[#9AA1AD] font-medium block">
                       Exercícios inclusos ({routineFormExercises.length})
                     </span>
                     <button
                       id="btn-add-exercise-to-routine-trigger"
                       type="button"
                       onClick={() => setShowAddExerciseToRoutineModal(true)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-lime-500/10 hover:bg-lime-500/25 text-lime-400 transition font-bold"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#7C6CFF]/15 hover:bg-[#7C6CFF]/25 text-[#7C6CFF] transition font-medium cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>Adicionar Exercício</span>
                     </button>
                   </div>
@@ -1470,21 +1565,21 @@ export default function WorkoutLog({
                                         setEditingExerciseId(null);
                                       }
                                     }}
-                                    className="bg-slate-900 border border-lime-500 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-650 outline-none w-full max-w-[240px] font-bold"
+                                    className="bg-[#1C1F26] border border-[#7C6CFF] rounded-[8px] px-2 py-1 text-xs text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none w-full max-w-[240px] font-medium"
                                     autoFocus
                                   />
                                   <button
                                     type="button"
                                     onClick={() => handleSaveExerciseNameEdit(item.exerciseId)}
-                                    className="p-1 bg-lime-500/10 hover:bg-lime-500/20 text-lime-400 rounded-md transition"
+                                    className="p-1.5 bg-[#7C6CFF]/15 hover:bg-[#7C6CFF]/25 text-[#7C6CFF] rounded-[8px] transition cursor-pointer"
                                     title="Salvar"
                                   >
-                                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <Check className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setEditingExerciseId(null)}
-                                    className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-md transition"
+                                    className="p-1.5 bg-[#1C1F26] hover:bg-[#252a35] text-[#9AA1AD] rounded-[8px] transition cursor-pointer"
                                     title="Cancelar"
                                   >
                                     <X className="w-3.5 h-3.5" />
@@ -1492,21 +1587,21 @@ export default function WorkoutLog({
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[11px] text-white font-bold block">{exDetails?.name || "Sem nome"}</span>
+                                  <span className="text-[12px] text-[#F2F3F5] font-semibold block">{exDetails?.name || 'Sem nome'}</span>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setEditingExerciseId(item.exerciseId);
                                       setEditingExerciseName(exDetails?.name || '');
                                     }}
-                                    className="text-slate-500 hover:text-lime-400 p-0.5 rounded transition"
+                                    className="text-[#9AA1AD] hover:text-[#7C6CFF] p-0.5 rounded transition cursor-pointer"
                                     title="Editar nome"
                                   >
                                     <Edit className="w-3 h-3" />
                                   </button>
                                 </div>
                               )}
-                              <span className="text-[9px] text-slate-500 font-mono tracking-wide block">{exDetails?.targetMuscle} • {exDetails?.equipment}</span>
+                              <span className="text-[11px] text-[#9AA1AD] block">{exDetails?.targetMuscle} • {exDetails?.equipment}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               {/* Reorder controls */}
@@ -1514,7 +1609,7 @@ export default function WorkoutLog({
                                 type="button"
                                 disabled={id === 0}
                                 onClick={() => handleMoveRoutineExercise(id, 'up')}
-                                className="text-slate-500 hover:text-lime-400 disabled:text-slate-800 disabled:hover:text-slate-800 p-1.5 rounded hover:bg-slate-900/50 transition"
+                                className="text-[#9AA1AD] hover:text-[#7C6CFF] disabled:text-[#6B7280] disabled:hover:text-[#6B7280] p-1.5 rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                                 title="Mover para cima"
                               >
                                 <ChevronUp className="w-3.5 h-3.5" />
@@ -1523,7 +1618,7 @@ export default function WorkoutLog({
                                 type="button"
                                 disabled={id === routineFormExercises.length - 1}
                                 onClick={() => handleMoveRoutineExercise(id, 'down')}
-                                className="text-slate-500 hover:text-lime-400 disabled:text-slate-800 disabled:hover:text-slate-800 p-1.5 rounded hover:bg-slate-900/50 transition"
+                                className="text-[#9AA1AD] hover:text-[#7C6CFF] disabled:text-[#6B7280] disabled:hover:text-[#6B7280] p-1.5 rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                                 title="Mover para baixo"
                               >
                                 <ChevronDown className="w-3.5 h-3.5" />
@@ -1533,7 +1628,7 @@ export default function WorkoutLog({
                                 id={`btn-remove-exercise-from-routine-${item.exerciseId}`}
                                 type="button"
                                 onClick={() => handleRemoveExerciseFromRoutine(item.exerciseId)}
-                                className="text-slate-500 hover:text-rose-400 p-1.5 rounded hover:bg-rose-500/10 transition ml-1"
+                                className="text-[#9AA1AD] hover:text-[#FF6B6B] p-1.5 rounded-[8px] hover:bg-[#FF6B6B]/10 transition ml-1 cursor-pointer"
                                 title="Remover exercício da rotina"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1543,7 +1638,7 @@ export default function WorkoutLog({
 
                           {/* Sets table */}
                           <div className="space-y-2">
-                            <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 text-center uppercase tracking-wider">
+                            <div className="grid grid-cols-12 gap-2 text-[10px] font-medium text-[#9AA1AD] text-center uppercase tracking-wider">
                               <div className="col-span-2 text-left">Série</div>
                               <div className="col-span-4">Carga (kg)</div>
                               <div className="col-span-4">Repetições</div>
@@ -1551,14 +1646,14 @@ export default function WorkoutLog({
                             </div>
 
                             {item.sets.map((s, idx) => (
-                              <div key={idx} className="grid grid-cols-12 gap-2 items-center text-center font-mono">
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-center text-center tabular-nums">
                                 <div className="col-span-2 text-left flex items-center gap-1">
-                                  <span className="text-slate-450 font-bold text-xs">#{idx + 1}</span>
+                                  <span className="text-[#9AA1AD] font-medium text-xs">#{idx + 1}</span>
                                   <button
                                     id={`btn-remove-set-routine-${item.exerciseId}-${idx}`}
                                     type="button"
                                     onClick={() => handleRemoveSetFromRoutineExercise(item.exerciseId, idx)}
-                                    className="text-sm font-light text-slate-500 hover:text-red-400 leading-none h-4 w-4 rounded hover:bg-slate-900 transition flex items-center justify-center font-sans"
+                                    className="text-sm font-light text-[#9AA1AD] hover:text-[#FF6B6B] leading-none h-4 w-4 rounded hover:bg-[#1C1F26] transition flex items-center justify-center font-sans cursor-pointer"
                                     title="Excluir série"
                                   >
                                     ×
@@ -1573,7 +1668,7 @@ export default function WorkoutLog({
                                     value={s.weight === 0 ? '' : s.weight}
                                     onChange={(e) => handleUpdateRoutineSetField(item.exerciseId, idx, 'weight', parseFloat(e.target.value) || 0)}
                                     placeholder="0"
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1 px-2 text-center text-xs text-white placeholder-slate-600 outline-none focus:border-lime-500/50 focus:bg-slate-950 font-bold"
+                                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[8px] py-1 px-2 text-center text-xs text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] font-medium"
                                   />
                                 </div>
                                 <div className="col-span-4">
@@ -1583,14 +1678,14 @@ export default function WorkoutLog({
                                     value={s.reps === 0 || s.reps === undefined || s.reps === null ? '' : s.reps}
                                     onChange={(e) => handleUpdateRoutineSetField(item.exerciseId, idx, 'reps', e.target.value)}
                                     placeholder="10"
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1 px-2 text-center text-xs text-white placeholder-slate-600 outline-none focus:border-lime-500/50 focus:bg-slate-950 font-bold"
+                                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[8px] py-1 px-2 text-center text-xs text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] font-medium"
                                   />
                                 </div>
                                 <div className="col-span-2">
                                   <select
                                     value={s.type}
                                     onChange={(e) => handleUpdateRoutineSetField(item.exerciseId, idx, 'type', e.target.value as SetType)}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1 px-1 text-center text-[10px] text-slate-300 outline-none focus:border-lime-500/50 font-sans"
+                                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[8px] py-1 px-1 text-center text-[10px] text-[#F2F3F5] outline-none focus:border-[#7C6CFF] font-sans"
                                   >
                                     <option value="Aquecimento">Aqc</option>
                                     <option value="Adaptação">Adp</option>
@@ -1604,15 +1699,15 @@ export default function WorkoutLog({
                               id={`btn-add-set-routine-${item.exerciseId}`}
                               type="button"
                               onClick={() => handleAddSetToRoutineExercise(item.exerciseId)}
-                              className="text-[10px] text-lime-400/90 hover:text-lime-400 font-bold flex items-center gap-1 transition-all pt-1"
+                              className="text-[11px] text-[#7C6CFF] hover:text-[#8E80FF] font-medium flex items-center gap-1 transition-all pt-1 cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>Adicionar Série</span>
                             </button>
 
                             {/* Custom Rest Timer and Notes/Observations fields */}
-                            <div className="pt-3 mt-3 border-t border-slate-900 flex items-center justify-between">
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">⏱️ Descanso do Exercício:</span>
+                            <div className="pt-3 mt-3 border-t border-[rgba(255,255,255,0.06)] flex items-center justify-between">
+                              <span className="text-[11px] text-[#9AA1AD] font-medium">⏱️ Descanso do Exercício:</span>
                               <div className="flex items-center gap-2">
                                 <input
                                   type="number"
@@ -1621,31 +1716,31 @@ export default function WorkoutLog({
                                   placeholder="90"
                                   value={item.restTimer === undefined || item.restTimer === null ? 90 : item.restTimer}
                                   onChange={(e) => handleUpdateRoutineExerciseField(item.exerciseId, 'restTimer', parseInt(e.target.value, 10) || 90)}
-                                  className="w-16 bg-slate-900 border border-slate-800 rounded-lg py-1 px-2 text-center text-xs text-white outline-none focus:border-lime-500 font-bold font-mono"
+                                  className="w-16 bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[8px] py-1 px-2 text-center text-xs text-[#F2F3F5] outline-none focus:border-[#7C6CFF] font-medium tabular-nums"
                                 />
-                                <span className="text-[10px] text-slate-500 font-semibold uppercase">segundos</span>
+                                <span className="text-[11px] text-[#9AA1AD]">segundos</span>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-900/60 text-left">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-[rgba(255,255,255,0.06)] text-left">
                               <div className="space-y-1">
-                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">📈 Progressão de Carga</label>
+                                <label className="text-[11px] text-[#9AA1AD] font-medium block">📈 Progressão de Carga</label>
                                 <textarea
                                   value={item.progressionNotes || ''}
                                   onChange={(e) => handleUpdateRoutineExerciseField(item.exerciseId, 'progressionNotes', e.target.value)}
                                   placeholder="Ex: aumentar 2kg após bater 10 reps em todas séries"
                                   rows={2}
-                                  className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-lime-500/50 resize-none leading-relaxed font-sans"
+                                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[10px] py-1.5 px-2.5 text-xs text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] resize-none leading-relaxed font-sans"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">📝 Observações</label>
+                                <label className="text-[11px] text-[#9AA1AD] font-medium block">📝 Observações</label>
                                 <textarea
                                   value={item.observations || ''}
                                   onChange={(e) => handleUpdateRoutineExerciseField(item.exerciseId, 'observations', e.target.value)}
                                   placeholder="Ex: alongamento total embaixo, pico de contração 1s"
                                   rows={2}
-                                  className="w-full bg-slate-900 border border-slate-800 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-lime-500/50 resize-none leading-relaxed font-sans"
+                                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[10px] py-1.5 px-2.5 text-xs text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] resize-none leading-relaxed font-sans"
                                 />
                               </div>
                             </div>
@@ -1672,7 +1767,7 @@ export default function WorkoutLog({
                   <button
                     id="btn-submit-save-routine"
                     type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 transition font-bold text-center shadow-lg shadow-lime-500/10 text-xs text-sans"
+                    className="flex-1 min-h-[44px] rounded-[12px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white transition font-medium text-center shadow-md shadow-[#7C6CFF]/20 text-[13px] cursor-pointer"
                   >
                     Salvar Rotina de Treino
                   </button>
@@ -1696,8 +1791,8 @@ export default function WorkoutLog({
             >
               <div className="flex items-center justify-between border-b border-slate-850 pb-3 shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-lime-400 scale-125">💪</span>
-                  <h3 className="font-bold text-white text-base">Pesquisar Exercício</h3>
+                  <span className="text-[#7C6CFF] scale-125">💪</span>
+                  <h3 className="font-semibold text-[#F2F3F5] text-base">Pesquisar Exercício</h3>
                 </div>
                 <button
                   id="btn-close-routine-picker-modal"
@@ -1706,7 +1801,7 @@ export default function WorkoutLog({
                     setShowAddExerciseToRoutineModal(false);
                     setRoutineExerciseSearch('');
                   }}
-                  className="p-1 text-slate-400 hover:text-white transition"
+                  className="p-1.5 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1714,25 +1809,25 @@ export default function WorkoutLog({
 
               {/* Search field */}
               <div className="relative shrink-0 text-xs">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3.5 top-3 w-4 h-4 text-[#9AA1AD]" />
                 <input
                   id="routine-picker-search-input"
                   type="text"
                   value={routineExerciseSearch}
                   onChange={(e) => setRoutineExerciseSearch(e.target.value)}
                   placeholder="Nome do exercício ou músculo..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] pl-10 pr-4 py-2.5 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px]"
                   autoFocus
                 />
               </div>
 
               <div className="flex items-center justify-between text-[11px] shrink-0 px-1">
-                <span className="text-slate-500 font-medium">Selecione ou busque na lista:</span>
+                <span className="text-[#9AA1AD] font-medium">Selecione ou busque na lista:</span>
                 <button
                   id="btn-picker-create-custom-exercise-top"
                   type="button"
                   onClick={() => handleShowInlineExerciseCreator()}
-                  className="text-lime-400 font-bold hover:underline py-0.5 flex items-center gap-1 shrink-0"
+                  className="text-[#7C6CFF] font-medium hover:underline py-0.5 flex items-center gap-1 shrink-0 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   <span>Novo Exercício</span>
@@ -1740,7 +1835,7 @@ export default function WorkoutLog({
               </div>
 
               {/* Scrollable list */}
-              <div className="flex-1 overflow-y-auto space-y-1.5 p-1 pr-1 border border-slate-850/50 bg-slate-950/20 rounded-xl max-h-[40vh] scrollbar-none">
+              <div className="flex-1 overflow-y-auto space-y-1.5 p-1 pr-1 border border-[rgba(255,255,255,0.06)] bg-[#15171C] rounded-[14px] max-h-[40vh] scrollbar-none">
                 {(() => {
                   const filtered = availableExercises.filter(e => {
                     if (!routineExerciseSearch) return true;
@@ -1751,12 +1846,12 @@ export default function WorkoutLog({
                   if (filtered.length === 0) {
                     return (
                       <div className="text-center py-8 px-4 space-y-3">
-                        <p className="text-slate-400 font-sans text-xs">Exercício "{routineExerciseSearch}" não encontrado.</p>
+                        <p className="text-[#9AA1AD] text-[13px]">Exercício "{routineExerciseSearch}" não encontrado.</p>
                         <button
                           id="btn-picker-create-custom-exercise-inline"
                           type="button"
                           onClick={() => handleShowInlineExerciseCreator(routineExerciseSearch)}
-                          className="px-4 py-2 bg-lime-500/10 hover:bg-lime-500/20 text-lime-400 border border-lime-500/20 rounded-xl text-xs font-bold transition active:scale-95 mx-auto"
+                          className="px-4 py-2 bg-[#7C6CFF]/15 hover:bg-[#7C6CFF]/25 text-[#7C6CFF] border border-[#7C6CFF]/20 rounded-[12px] text-[13px] font-medium transition cursor-pointer mx-auto"
                         >
                           Criar "{routineExerciseSearch}" Agora
                         </button>
@@ -1773,20 +1868,20 @@ export default function WorkoutLog({
                         type="button"
                         disabled={isAlreadyAdded}
                         onClick={() => handleAddExerciseToRoutine(ex)}
-                        className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between border transition text-xs ${
+                        className={`w-full text-left p-3 rounded-[12px] flex items-center justify-between border transition text-xs cursor-pointer ${
                           isAlreadyAdded
-                            ? 'opacity-40 border-transparent bg-transparent text-slate-500 cursor-not-allowed'
-                            : 'border-slate-850/50 hover:border-lime-500 bg-slate-950/40 hover:bg-slate-950 text-white'
+                            ? 'opacity-40 border-transparent bg-transparent text-[#6B7280] cursor-not-allowed'
+                            : 'border-[rgba(255,255,255,0.06)] hover:border-[#7C6CFF] bg-[#1C1F26] hover:bg-[#252a35] text-[#F2F3F5]'
                         }`}
                       >
                         <div>
-                          <span className="font-bold text-slate-200 block">{ex.name}</span>
-                          <span className="text-[10px] text-slate-500 font-mono">{ex.targetMuscle} • {ex.equipment}</span>
+                          <span className="font-semibold text-[#F2F3F5] block text-[13px]">{ex.name}</span>
+                          <span className="text-[11px] text-[#9AA1AD]">{ex.targetMuscle} • {ex.equipment}</span>
                         </div>
                         {isAlreadyAdded ? (
-                          <span className="text-[10px] text-lime-400 bg-lime-500/10 px-2 py-0.5 rounded border border-lime-500/10 font-bold font-sans uppercase">Incluso</span>
+                          <span className="text-[10px] text-[#4ADE80] bg-[#4ADE80]/15 px-2 py-0.5 rounded-[6px] font-medium uppercase">Incluso</span>
                         ) : (
-                          <span className="text-[10px] text-lime-400 font-bold uppercase hover:text-white">+ Adicionar</span>
+                          <span className="text-[11px] text-[#7C6CFF] font-medium">+ Adicionar</span>
                         )}
                       </button>
                     );
@@ -1811,16 +1906,16 @@ export default function WorkoutLog({
             >
               <div className="flex items-center justify-between border-b border-slate-850 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center text-sm font-bold">
+                  <div className="w-8 h-8 rounded-[10px] bg-[#7C6CFF]/15 text-[#7C6CFF] flex items-center justify-center text-sm font-bold">
                     🏋️
                   </div>
-                  <h3 className="font-bold text-white text-base">Novo Exercício Customizado</h3>
+                  <h3 className="font-semibold text-[#F2F3F5] text-base">Novo Exercício Customizado</h3>
                 </div>
                 <button
                   id="btn-close-inline-exercise-modal"
                   type="button"
                   onClick={() => setShowInlineExerciseModal(false)}
-                  className="p-1 text-slate-400 hover:text-white rounded-lg transition"
+                  className="p-1.5 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1829,7 +1924,7 @@ export default function WorkoutLog({
               <form onSubmit={handleSaveInlineExercise} className="space-y-4 text-xs">
                 {/* Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Nome do Exercício</label>
+                  <label className="text-[11px] text-[#9AA1AD] font-medium block">Nome do Exercício</label>
                   <input
                     id="inline-exercise-form-name"
                     type="text"
@@ -1837,18 +1932,18 @@ export default function WorkoutLog({
                     value={inlineExerciseName}
                     onChange={(e) => setInlineExerciseName(e.target.value)}
                     placeholder="Ex: Supino Reto com Halteres"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   />
                 </div>
 
                 {/* Category */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Categoria</label>
+                  <label className="text-[11px] text-[#9AA1AD] font-medium block">Categoria</label>
                   <select
                     id="inline-exercise-form-category"
                     value={inlineExerciseCategory}
                     onChange={(e) => setInlineExerciseCategory(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     <option value="Hipertrofia">Hipertrofia</option>
                     <option value="Força">Força</option>
@@ -1859,12 +1954,12 @@ export default function WorkoutLog({
 
                 {/* Target Muscle */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Músculo Alvo principal</label>
+                  <label className="text-[11px] text-[#9AA1AD] font-medium block">Músculo Alvo principal</label>
                   <select
                     id="inline-exercise-form-muscle"
                     value={inlineExerciseMuscle}
                     onChange={(e) => setInlineExerciseMuscle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs animate-none"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     {TARGET_MUSCLES_OPTIONS.map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -1874,12 +1969,12 @@ export default function WorkoutLog({
 
                 {/* Equipment */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Equipamento</label>
+                  <label className="text-[11px] text-[#9AA1AD] font-medium block">Equipamento</label>
                   <select
                     id="inline-exercise-form-equipment"
                     value={inlineExerciseEquipment}
                     onChange={(e) => setInlineExerciseEquipment(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs animate-none"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     {EQUIPMENT_OPTIONS.map(eq => (
                       <option key={eq} value={eq}>{eq}</option>
@@ -1888,19 +1983,19 @@ export default function WorkoutLog({
                 </div>
 
                 {/* Save actions */}
-                <div className="flex gap-3 pt-3 border-t border-slate-850">
+                <div className="flex gap-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
                   <button
                     id="btn-cancel-save-inline-exercise"
                     type="button"
                     onClick={() => setShowInlineExerciseModal(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 hover:text-white transition font-semibold text-center"
+                    className="flex-1 min-h-[44px] rounded-[12px] bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] hover:text-[#F2F3F5] transition font-medium text-[13px] text-center cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     id="btn-submit-save-inline-exercise"
                     type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 transition font-bold text-center shadow-lg shadow-lime-500/10"
+                    className="flex-1 min-h-[44px] rounded-[12px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white transition font-medium text-[13px] text-center shadow-md shadow-[#7C6CFF]/20 cursor-pointer"
                   >
                     Criar e Adicionar
                   </button>
@@ -2031,9 +2126,9 @@ export default function WorkoutLog({
                         );
                       }
                     }}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 font-bold text-xs uppercase tracking-wider font-mono shadow-md transition active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white font-medium text-[13px] shadow-sm transition active:scale-95 cursor-pointer"
                   >
-                    <Printer className="w-4 h-4 text-slate-950" />
+                    <Printer className="w-4 h-4 text-white" />
                     <span>Imprimir Agora</span>
                   </button>
                   <button

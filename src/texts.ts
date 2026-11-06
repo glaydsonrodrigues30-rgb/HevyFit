@@ -1,11 +1,11 @@
 export const TEXTS = {
-  dashboard: 'Dashboard',
+  dashboard: 'Hoje',
   train: 'Treinar',
-  history: 'Histórico',
   running: 'Corrida',
-  tafPlan: 'Plano TAF',
+  tafPlan: 'Plano',
+  history: 'Histórico',
   exercises: 'Exercícios',
-  weight: 'Peso Corporal',
+  weight: 'Peso corporal',
   cycle: 'Ciclo',
   admin: 'Admin'
 } as const;

@@ -308,18 +308,20 @@ export default function ExerciseProgression({
     const areaD = `${pathD} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
 
     return (
-      <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-2">
+      <div className="bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] p-4 rounded-[16px] space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-400">Curva de Carga Máxima Coletada (kg)</span>
-          <span className="text-[10px] text-lime-400 font-bold bg-lime-500/10 px-2 py-0.5 rounded border border-lime-500/15">Séries Concluídas</span>
+          <span className="text-[12px] font-medium text-[#9AA1AD]">Evolução de Carga Máxima (kg)</span>
+          <span className="text-[11px] text-[#7C6CFF] font-semibold bg-[#7C6CFF]/15 px-2.5 py-0.5 rounded-full border border-[#7C6CFF]/25">
+            Séries Concluídas
+          </span>
         </div>
 
-        <div className="relative">
+        <div className="relative pt-1">
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
             <defs>
               <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#84cc16" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#84cc16" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="#7C6CFF" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#7C6CFF" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -334,14 +336,14 @@ export default function ExerciseProgression({
                     y1={yVal}
                     x2={width - paddingRight}
                     y2={yVal}
-                    className="stroke-slate-900"
+                    stroke="rgba(255,255,255,0.05)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
                   <text
                     x={paddingLeft - 8}
                     y={yVal + 4}
-                    className="fill-slate-500 text-[10px] font-mono text-right"
+                    className="fill-[#6B7280] text-[9px] font-mono text-right"
                     textAnchor="end"
                   >
                     {labelW}kg
@@ -354,7 +356,7 @@ export default function ExerciseProgression({
             <path d={areaD} fill="url(#chart-grad)" />
 
             {/* Main Path Line */}
-            <path d={pathD} fill="none" className="stroke-lime-500" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={pathD} fill="none" stroke="#7C6CFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
             {/* Circle Markers & Text */}
             {coords.map((c, idx) => (
@@ -363,7 +365,7 @@ export default function ExerciseProgression({
                 <text
                   x={c.x}
                   y={height - paddingBottom + 16}
-                  className="fill-slate-500 text-[9px] font-mono"
+                  className="fill-[#6B7280] text-[9px] font-mono"
                   textAnchor="middle"
                 >
                   {c.date}
@@ -375,7 +377,7 @@ export default function ExerciseProgression({
                     cx={c.x}
                     cy={c.y}
                     r="7"
-                    className="fill-none stroke-lime-400 opacity-60 animate-ping"
+                    className="fill-none stroke-[#7C6CFF] opacity-60 animate-ping"
                     strokeWidth="1"
                   />
                 )}
@@ -385,7 +387,7 @@ export default function ExerciseProgression({
                   cx={c.x}
                   cy={c.y}
                   r="4"
-                  className={`${c.weight === personalRecordWeight ? 'fill-lime-400 stroke-slate-950' : 'fill-slate-200 stroke-slate-950'}`}
+                  className={c.weight === personalRecordWeight ? 'fill-[#7C6CFF] stroke-[#15171C]' : 'fill-[#F2F3F5] stroke-[#15171C]'}
                   strokeWidth="2"
                 />
 
@@ -412,16 +414,16 @@ export default function ExerciseProgression({
       {/* Exercise Selection Sidebar (5 cols) */}
       <div className="lg:col-span-5 space-y-4">
         {/* Search and Filters panel */}
-        <div className="bg-slate-900 border border-slate-850 p-4 rounded-2xl space-y-3">
+        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-4 rounded-[20px] space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-white text-base">Exercícios Catalogados</h3>
+            <h3 className="font-semibold text-[#F2F3F5] text-[15px]">Exercícios</h3>
             <button
               id="btn-create-exercise"
               onClick={() => {
                 setEditingExercise(null);
                 setShowExerciseFormModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-lime-500/10 hover:bg-lime-500/20 text-lime-400 text-xs font-semibold transition active:scale-95 border border-lime-500/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[#7C6CFF]/15 hover:bg-[#7C6CFF]/25 text-[#7C6CFF] text-[12px] font-semibold transition active:scale-95 border border-[#7C6CFF]/30 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Criar</span>
@@ -429,14 +431,14 @@ export default function ExerciseProgression({
           </div>
           
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#6B7280]" />
             <input
               id="sidebar-search-exercise"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Pesquisar braços, agachamento..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-white text-xs outline-none focus:border-lime-500"
+              placeholder="Buscar por nome ou músculo..."
+              className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] pl-9 pr-4 py-2 text-[#F2F3F5] text-[13px] outline-none focus:border-[#7C6CFF]"
             />
           </div>
 
@@ -445,10 +447,10 @@ export default function ExerciseProgression({
               <button
                 key={m}
                 onClick={() => setMuscleFilter(m)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition shrink-0 ${
+                className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition shrink-0 cursor-pointer ${
                   muscleFilter === m
-                    ? 'bg-lime-500 border-lime-500 text-slate-950'
-                    : 'border-slate-850 text-slate-400 hover:text-white hover:bg-slate-950'
+                    ? 'bg-[#7C6CFF] text-white shadow-sm font-semibold'
+                    : 'bg-[#1C1F26] text-[#9AA1AD] hover:text-[#F2F3F5] border border-[rgba(255,255,255,0.06)]'
                 }`}
               >
                 {m}
@@ -458,7 +460,7 @@ export default function ExerciseProgression({
         </div>
 
         {/* Scrollable list of exercise items */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-2 max-h-[60vh] overflow-y-auto space-y-1">
+        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-2 max-h-[60vh] overflow-y-auto space-y-1">
           {filteredExercises.map((ex) => {
             const isSelected = ex.id === selectedExerciseId;
             const pointsCount = getExerciseHistoryPoints(ex.id).length;
@@ -468,14 +470,14 @@ export default function ExerciseProgression({
                 key={ex.id}
                 id={`sidebar-select-exercise-${ex.id}`}
                 onClick={() => setSelectedExerciseId(ex.id)}
-                className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between border transition ${
+                className={`w-full text-left p-2.5 rounded-[14px] flex items-center justify-between transition cursor-pointer border ${
                   isSelected
-                    ? 'bg-lime-500/10 border-lime-500/50 text-white'
-                    : 'bg-slate-950/20 border-transparent text-slate-400 hover:bg-slate-950 hover:text-white'
+                    ? 'bg-[#1C1F26] border-[#7C6CFF]/40 text-[#F2F3F5]'
+                    : 'border-transparent text-[#9AA1AD] hover:bg-[#1C1F26]/60 hover:text-[#F2F3F5]'
                 }`}
               >
                 <div className="space-y-0.5 truncate">
-                  <span className={`font-bold text-xs truncate block ${isSelected ? 'text-lime-400' : 'text-slate-200'}`}>
+                  <span className={`font-semibold text-[13px] truncate block ${isSelected ? 'text-[#7C6CFF]' : 'text-[#F2F3F5]'}`}>
                     {ex.name || "Sem nome"}
                   </span>
                   <div className="flex items-center gap-1.5 text-[9px] text-slate-500">
@@ -498,74 +500,74 @@ export default function ExerciseProgression({
           })}
         </div>
 
-        {/* Quick/Safe Exercise Form (Rule #1, #2, #3, #4, #5) */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-850 pb-2">
+        {/* Quick/Safe Exercise Form */}
+        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4.5 space-y-4">
+          <div className="flex items-center gap-2 border-b border-[rgba(255,255,255,0.07)] pb-2.5">
             <span className="text-sm">⚡</span>
-            <h4 className="font-bold text-white text-xs uppercase tracking-wide">Adicionar Exercício Rápido (Seguro)</h4>
+            <h4 className="font-semibold text-[#F2F3F5] text-[13px] tracking-wide">Adicionar Exercício Rápido</h4>
           </div>
 
-          <form onSubmit={handleAddQuickExercise} className="space-y-3 text-xs">
+          <form onSubmit={handleAddQuickExercise} className="space-y-3 text-[13px]">
             <div className="space-y-1">
-              <label htmlFor="exercise-form-input-name" className="text-[10px] text-slate-400 font-bold uppercase block">Nome do Exercício</label>
+              <label htmlFor="exercise-form-input-name" className="text-[11px] text-[#9AA1AD] font-medium block">Nome do Exercício</label>
               <input
                 id="exercise-form-input-name"
                 type="text"
                 placeholder="Ex: Elevação Lateral, Tríceps Pulley"
                 value={quickName}
                 onChange={(e) => setQuickName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label htmlFor="exercise-form-input-sets" className="text-[10px] text-slate-400 font-bold uppercase block">Séries</label>
+                <label htmlFor="exercise-form-input-sets" className="text-[11px] text-[#9AA1AD] font-medium block">Séries</label>
                 <input
                   id="exercise-form-input-sets"
                   type="number"
                   placeholder="Ex: 4"
                   value={quickSets}
                   onChange={(e) => setQuickSets(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px] tabular-nums"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="exercise-form-input-reps" className="text-[10px] text-slate-400 font-bold uppercase block">Reps</label>
+                <label htmlFor="exercise-form-input-reps" className="text-[11px] text-[#9AA1AD] font-medium block">Reps</label>
                 <input
                   id="exercise-form-input-reps"
                   type="text"
                   placeholder="Ex: 12"
                   value={quickReps}
                   onChange={(e) => setQuickReps(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px] tabular-nums"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label htmlFor="exercise-form-input-weight" className="text-[10px] text-slate-400 font-bold uppercase block">Carga (kg)</label>
+                <label htmlFor="exercise-form-input-weight" className="text-[11px] text-[#9AA1AD] font-medium block">Carga (kg)</label>
                 <input
                   id="exercise-form-input-weight"
                   type="number"
                   placeholder="Ex: 14"
                   value={quickWeight}
                   onChange={(e) => setQuickWeight(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px] tabular-nums"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="exercise-form-input-rest" className="text-[10px] text-slate-400 font-bold uppercase block">Descanso (s)</label>
+                <label htmlFor="exercise-form-input-rest" className="text-[11px] text-[#9AA1AD] font-medium block">Descanso (s)</label>
                 <input
                   id="exercise-form-input-rest"
                   type="number"
                   placeholder="Ex: 60"
                   value={quickRest}
                   onChange={(e) => setQuickRest(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-2 text-white outline-none focus:border-lime-500 text-xs"
+                  className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2 text-[#F2F3F5] placeholder-[#9AA1AD]/50 outline-none focus:border-[#7C6CFF] text-[13px] tabular-nums"
                 />
               </div>
             </div>
@@ -573,7 +575,7 @@ export default function ExerciseProgression({
             <button
               id="btn-submit-quick-exercise"
               type="submit"
-              className="w-full bg-lime-500 hover:bg-lime-600 active:scale-95 text-slate-950 font-bold py-2 rounded-xl transition shadow-md shadow-lime-500/10 text-center text-xs cursor-pointer"
+              className="w-full min-h-[44px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white font-medium py-2.5 rounded-[12px] transition shadow-sm shadow-[#7C6CFF]/20 text-center text-[13px] cursor-pointer"
             >
               Adicionar ao Treino
             </button>
@@ -581,19 +583,19 @@ export default function ExerciseProgression({
 
           {/* Draft exercises and saving standard workouts */}
           {tempExercises.length > 0 && (
-            <div className="space-y-3 border-t border-slate-850 pt-3">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase block">Exercícios no Rascunho:</span>
-              <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+            <div className="space-y-3 border-t border-[rgba(255,255,255,0.07)] pt-3">
+              <span className="text-[11px] text-[#9AA1AD] font-medium block">Exercícios no rascunho:</span>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                 {tempExercises.map((exercise) => (
                   <div
                     key={exercise.id}
-                    className="bg-slate-950 border border-slate-850/60 p-2 rounded-xl flex items-center justify-between text-xs"
+                    className="bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] p-2.5 rounded-[12px] flex items-center justify-between text-xs"
                   >
                     <div className="truncate">
-                      <span className="font-bold text-slate-200 block truncate text-[11px]">
-                        {exercise.name || "Sem nome"}
+                      <span className="font-semibold text-[#F2F3F5] block truncate text-[12px]">
+                        {exercise.name || 'Sem nome'}
                       </span>
-                      <span className="text-[9px] text-slate-500 font-mono">
+                      <span className="text-[11px] text-[#9AA1AD] tabular-nums">
                         {exercise.sets} série(s) × {exercise.reps} reps | {exercise.weight}kg | {exercise.rest}s
                       </span>
                     </div>
@@ -601,7 +603,7 @@ export default function ExerciseProgression({
                     <button
                       type="button"
                       onClick={() => setTempExercises(prev => prev.filter(w => w.id !== exercise.id))}
-                      className="text-slate-500 hover:text-red-400 p-1 flex-shrink-0 cursor-pointer"
+                      className="text-[#9AA1AD] hover:text-[#FF6B6B] p-1 flex-shrink-0 cursor-pointer transition"
                       title="Excluir"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -611,24 +613,24 @@ export default function ExerciseProgression({
               </div>
 
               {/* Form to save standard workout template */}
-              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-850/60 space-y-2 mt-2">
-                <label htmlFor="temp-workout-name-input" className="text-[10px] text-slate-400 font-bold uppercase block">Nome do Treino Padronizado</label>
+              <div className="bg-[#1C1F26] p-3 rounded-[14px] border border-[rgba(255,255,255,0.05)] space-y-2.5 mt-2">
+                <label htmlFor="temp-workout-name-input" className="text-[11px] text-[#9AA1AD] font-medium block">Nome do Treino Padronizado</label>
                 <input
                   id="temp-workout-name-input"
                   type="text"
                   placeholder="Ex: Treino A - Superior"
                   value={workoutName}
                   onChange={(e) => setWorkoutName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs outline-none focus:border-lime-500"
+                  className="w-full bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[10px] px-2.5 py-1.5 text-[#F2F3F5] text-xs outline-none focus:border-[#7C6CFF]"
                 />
                 <button
                   id="btn-save-temp-workout"
                   type="button"
                   onClick={handleSaveStandardWorkout}
                   disabled={!workoutName.trim()}
-                  className="w-full py-1 text-slate-950 bg-lime-400 hover:bg-lime-500 disabled:opacity-50 disabled:hover:bg-lime-400 rounded-lg font-bold text-[10px] uppercase tracking-wide transition cursor-pointer"
+                  className="w-full min-h-[38px] text-white bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] disabled:opacity-40 rounded-[10px] font-medium text-[11px] transition cursor-pointer"
                 >
-                  Salvar Treino Completo (Firestore)
+                  Salvar Treino Completo
                 </button>
               </div>
             </div>
@@ -637,20 +639,20 @@ export default function ExerciseProgression({
 
         {/* Saved standardized workouts directly fetched from Firestore */}
         {standardWorkouts.length > 0 && (
-          <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 mt-4 space-y-3">
-            <div className="flex items-center gap-1.5 border-b border-slate-850 pb-2">
-              <span className="text-lime-400 text-xs font-mono font-bold">✓</span>
-              <h4 className="font-bold text-white text-xs uppercase tracking-wide">Treinos Padronizados (Firestore)</h4>
+          <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4.5 mt-4 space-y-3">
+            <div className="flex items-center gap-1.5 border-b border-[rgba(255,255,255,0.07)] pb-2">
+              <span className="text-[#4ADE80] text-xs font-bold">✓</span>
+              <h4 className="font-semibold text-[#F2F3F5] text-[13px] tracking-wide">Treinos Padronizados</h4>
             </div>
-            <div className="space-y-3.5 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
               {standardWorkouts.map((workout) => (
-                <div key={workout.id} className="bg-slate-950 border border-slate-850/70 p-3 rounded-xl space-y-2 hover:border-slate-800 transition">
+                <div key={workout.id} className="bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] p-3 rounded-[14px] space-y-2 hover:border-[rgba(255,255,255,0.1)] transition">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-lime-400 text-xs truncate">{workout.name}</span>
+                    <span className="font-semibold text-[#7C6CFF] text-[13px] truncate">{workout.name}</span>
                     <button
                       id={`btn-delete-standard-workout-${workout.id}`}
                       onClick={() => onDeleteStandardWorkout && onDeleteStandardWorkout(workout.id)}
-                      className="text-slate-500 hover:text-red-400 p-0.5 transition cursor-pointer"
+                      className="text-[#9AA1AD] hover:text-[#FF6B6B] p-0.5 transition cursor-pointer"
                       title="Excluir treino"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -658,9 +660,9 @@ export default function ExerciseProgression({
                   </div>
                   <div className="space-y-1">
                     {workout.exercises.map((ex, idx) => (
-                      <div key={ex.id} className="text-[10px] text-slate-450 flex justify-between gap-1 items-center">
-                        <span className="truncate">{idx + 1}. {ex.name || "Sem nome"}</span>
-                        <span className="font-mono text-slate-500 shrink-0 font-semibold">{ex.sets}s × {ex.reps} | {ex.weight}kg | {ex.rest}s</span>
+                      <div key={ex.id} className="text-[11px] text-[#9AA1AD] flex justify-between gap-1 items-center">
+                        <span className="truncate">{idx + 1}. {ex.name || 'Sem nome'}</span>
+                        <span className="text-[#F2F3F5] shrink-0 font-medium tabular-nums">{ex.sets}s × {ex.reps} | {ex.weight}kg | {ex.rest}s</span>
                       </div>
                     ))}
                   </div>
@@ -674,19 +676,19 @@ export default function ExerciseProgression({
       {/* Exercise statistics Details & progression charts (7 cols) */}
       <div className="lg:col-span-7 space-y-6">
         {selectedExDetails ? (
-          <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-6">
+          <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-5 space-y-6">
             
             {/* Header description */}
-            <div className="flex items-start justify-between border-b border-slate-850 pb-4">
+            <div className="flex items-start justify-between border-b border-[rgba(255,255,255,0.07)] pb-4">
               <div className="space-y-1">
-                <span className="text-[10px] text-lime-400 uppercase font-bold tracking-widest font-mono">
+                <span className="text-[11px] text-[#7C6CFF] font-medium tracking-wide">
                   {selectedExDetails.category} • {selectedExDetails.equipment}
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-xl font-bold text-white font-sans">{selectedExDetails.name}</h3>
+                  <h3 className="text-xl font-bold text-[#F2F3F5]">{selectedExDetails.name}</h3>
                   {showDeleteConfirm ? (
-                    <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-850 text-xs shadow-inner">
-                      <span className="text-[10px] text-red-400 font-bold uppercase tracking-wider px-1">Excluir?</span>
+                    <div className="flex items-center gap-1.5 bg-[#1C1F26] p-1.5 rounded-[10px] border border-[rgba(255,255,255,0.08)] text-xs shadow-inner">
+                      <span className="text-[11px] text-[#FF6B6B] font-medium px-1">Excluir?</span>
                       <button
                         id="btn-confirm-delete-exercise"
                         onClick={() => {
@@ -697,14 +699,14 @@ export default function ExerciseProgression({
                           }
                           setShowDeleteConfirm(false);
                         }}
-                        className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-[9px] uppercase tracking-wider transition"
+                        className="px-2.5 py-1 bg-[#FF6B6B] hover:bg-[#ff5252] text-white font-medium rounded-[8px] text-[11px] transition cursor-pointer"
                       >
                         Sim
                       </button>
                       <button
                         id="btn-cancel-delete-exercise"
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-[9px] uppercase tracking-wider transition"
+                        className="px-2.5 py-1 bg-[#15171C] hover:bg-[#252a35] text-[#9AA1AD] font-medium rounded-[8px] text-[11px] transition cursor-pointer"
                       >
                         Não
                       </button>
@@ -717,7 +719,7 @@ export default function ExerciseProgression({
                           setEditingExercise(selectedExDetails);
                           setShowExerciseFormModal(true);
                         }}
-                        className="p-1 hover:bg-slate-800 text-slate-400 hover:text-lime-400 rounded transition"
+                        className="p-1.5 hover:bg-[#1C1F26] text-[#9AA1AD] hover:text-[#7C6CFF] rounded-[8px] transition cursor-pointer"
                         title="Editar Exercício"
                       >
                         <Edit className="w-4 h-4" />
@@ -725,7 +727,7 @@ export default function ExerciseProgression({
                       <button
                         id="btn-delete-exercise-trigger"
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="p-1 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded transition"
+                        className="p-1.5 hover:bg-[#FF6B6B]/10 text-[#6B7280] hover:text-[#FF6B6B] rounded-[8px] transition cursor-pointer"
                         title="Excluir Exercício"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -733,9 +735,9 @@ export default function ExerciseProgression({
                     </>
                   )}
                 </div>
-                <span className="text-xs text-slate-450 block">Músculo principal acionado: <strong className="text-slate-300 font-semibold">{selectedExDetails.targetMuscle}</strong></span>
+                <span className="text-[13px] text-[#9AA1AD] block">Músculo principal acionado: <strong className="text-[#F2F3F5] font-medium">{selectedExDetails.targetMuscle}</strong></span>
               </div>
-              <div className="w-12 h-12 bg-slate-950 border border-slate-850 rounded-2xl flex items-center justify-center text-lime-400 text-lg">
+              <div className="w-12 h-12 bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] rounded-[14px] flex items-center justify-center text-[#7C6CFF] text-lg">
                 🏋️
               </div>
             </div>
@@ -743,34 +745,34 @@ export default function ExerciseProgression({
             {/* Stats Record KPIs Grid */}
             <div className="grid grid-cols-3 gap-3">
               {/* Record Weight */}
-              <div className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl text-center space-y-1">
-                <div className="flex justify-center text-amber-400">
+              <div className="bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] p-3.5 rounded-[14px] text-center space-y-1">
+                <div className="flex justify-center text-[#F5B84B]">
                   <Trophy className="w-4 h-4 fill-current" />
                 </div>
-                <span className="text-[10px] text-slate-400 block font-semibold uppercase">Carga Recorde</span>
-                <p id="stat-record-weight" className="text-lg font-bold font-mono text-white">
+                <span className="text-[11px] text-[#9AA1AD] block font-medium">Carga Recorde</span>
+                <p id="stat-record-weight" className="text-base sm:text-lg font-semibold text-[#F2F3F5] tabular-nums">
                   {personalRecordWeight > 0 ? `${personalRecordWeight} kg` : '--'}
                 </p>
               </div>
 
               {/* Record Volume */}
-              <div className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl text-center space-y-1">
-                <div className="flex justify-center text-cyan-400">
+              <div className="bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] p-3.5 rounded-[14px] text-center space-y-1">
+                <div className="flex justify-center text-[#7C6CFF]">
                   <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] text-slate-400 block font-semibold uppercase">Volume Recorde</span>
-                <p id="stat-record-volume" className="text-lg font-bold font-mono text-white">
+                <span className="text-[11px] text-[#9AA1AD] block font-medium">Volume Recorde</span>
+                <p id="stat-record-volume" className="text-base sm:text-lg font-semibold text-[#F2F3F5] tabular-nums">
                   {personalRecordVolume > 0 ? `${personalRecordVolume} kg` : '--'}
                 </p>
               </div>
 
               {/* Record Reps */}
-              <div className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl text-center space-y-1">
-                <div className="flex justify-center text-rose-450">
+              <div className="bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] p-3.5 rounded-[14px] text-center space-y-1">
+                <div className="flex justify-center text-[#2DD4BF]">
                   <Dumbbell className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] text-slate-400 block font-semibold uppercase">Max Reps</span>
-                <p id="stat-record-reps" className="text-lg font-bold font-mono text-white">
+                <span className="text-[11px] text-[#9AA1AD] block font-medium">Max Reps</span>
+                <p id="stat-record-reps" className="text-base sm:text-lg font-semibold text-[#F2F3F5] tabular-nums">
                   {personalRecordReps > 0 ? `${personalRecordReps} reps` : '--'}
                 </p>
               </div>
@@ -781,39 +783,39 @@ export default function ExerciseProgression({
 
             {/* Session Logs listing */}
             <div className="space-y-3">
-              <div className="flex items-center gap-1.5 text-slate-300">
-                <History className="w-4 h-4 text-lime-400" />
-                <h4 className="font-bold text-sm">Diário de Cargas Registradas</h4>
+              <div className="flex items-center gap-2 text-[#F2F3F5]">
+                <History className="w-4 h-4 text-[#7C6CFF]" />
+                <h4 className="font-semibold text-[14px]">Diário de Cargas Registradas</h4>
               </div>
 
               {points.length === 0 ? (
-                <div className="p-6 bg-slate-950/40 rounded-xl border border-slate-850 text-center text-xs text-slate-500 italic">
-                  Você ainda não possui treinos salvos com esse exercício. Comece a monitorar no log estilo Hevy!
+                <div className="p-6 bg-[#1C1F26]/50 rounded-[14px] border border-[rgba(255,255,255,0.05)] text-center text-[13px] text-[#9AA1AD] italic">
+                  Você ainda não possui treinos salvos com esse exercício.
                 </div>
               ) : (
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {points.slice().reverse().map((p, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-950 hover:bg-slate-900 border border-slate-850 p-3 rounded-xl flex items-center justify-between text-xs transition"
+                      className="bg-[#1C1F26] hover:bg-[#222630] border border-[rgba(255,255,255,0.05)] p-3 rounded-[12px] flex items-center justify-between text-xs transition"
                     >
                       <div className="flex items-center gap-2.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                        <span className="text-slate-400 font-semibold">{new Date(p.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        <Calendar className="w-3.5 h-3.5 text-[#9AA1AD]" />
+                        <span className="text-[#9AA1AD] font-medium">{new Date(p.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                       </div>
                       
-                      <div className="flex gap-4 font-mono">
+                      <div className="flex gap-4 tabular-nums">
                         <div className="text-right">
-                          <span className="text-slate-500 text-[10px] block uppercase">Carga de topo</span>
-                          <span className="text-white font-bold">{p.maxWeight} kg</span>
+                          <span className="text-[#6B7280] text-[10px] block">Carga de topo</span>
+                          <span className="text-[#F2F3F5] font-semibold">{p.maxWeight} kg</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-slate-500 text-[10px] block uppercase">Volume total</span>
-                          <span className="text-lime-400 font-bold">{p.volume} kg</span>
+                          <span className="text-[#6B7280] text-[10px] block">Volume total</span>
+                          <span className="text-[#7C6CFF] font-semibold">{p.volume} kg</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-slate-500 text-[10px] block uppercase">Max Reps</span>
-                          <span className="text-white font-bold">{p.maxReps}</span>
+                          <span className="text-[#6B7280] text-[10px] block">Max Reps</span>
+                          <span className="text-[#F2F3F5] font-semibold">{p.maxReps}</span>
                         </div>
                       </div>
                     </div>
@@ -824,10 +826,10 @@ export default function ExerciseProgression({
 
           </div>
         ) : (
-          <div className="bg-slate-900 border border-slate-850 rounded-2xl p-10 text-center flex flex-col items-center justify-center space-y-3 text-white">
+          <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-10 text-center flex flex-col items-center justify-center space-y-3 text-[#F2F3F5]">
             <span className="text-2xl">🔍</span>
-            <span className="text-sm font-semibold">Nenhum exercício selecionado</span>
-            <span className="text-xs text-slate-450 max-w-sm">Navegue na barra lateral e selecione qual exercício você deseja analisar e ver as métricas e evolução de performance.</span>
+            <span className="text-[15px] font-semibold">Nenhum exercício selecionado</span>
+            <span className="text-[13px] text-[#9AA1AD] max-w-sm">Navegue na lista ao lado e selecione qual exercício você deseja analisar.</span>
           </div>
         )}
       </div>
@@ -841,14 +843,14 @@ export default function ExerciseProgression({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden p-6 text-white space-y-4 font-sans"
+              className="bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[20px] shadow-2xl w-full max-w-md overflow-hidden p-6 text-[#F2F3F5] space-y-4 font-sans"
             >
-              <div className="flex items-center justify-between border-b border-slate-850 pb-3">
+              <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.07)] pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-lime-500/10 text-lime-400 flex items-center justify-center text-sm font-bold">
+                  <div className="w-9 h-9 rounded-[10px] bg-[#7C6CFF]/15 text-[#7C6CFF] flex items-center justify-center text-sm font-bold">
                     🏋️
                   </div>
-                  <h3 className="font-bold text-white text-base">
+                  <h3 className="font-semibold text-[#F2F3F5] text-base">
                     {editingExercise ? 'Editar Exercício' : 'Novo Exercício'}
                   </h3>
                 </div>
@@ -858,7 +860,7 @@ export default function ExerciseProgression({
                     setShowExerciseFormModal(false);
                     setEditingExercise(null);
                   }}
-                  className="p-1 text-slate-400 hover:text-white rounded-lg transition"
+                  className="p-1.5 text-[#9AA1AD] hover:text-[#F2F3F5] rounded-[8px] hover:bg-[#1C1F26] transition cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -867,7 +869,7 @@ export default function ExerciseProgression({
               <form onSubmit={handleSaveExercise} className="space-y-4 text-xs">
                 {/* Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Nome do Exercício</label>
+                  <label className="text-[12px] text-[#9AA1AD] font-medium block">Nome do Exercício</label>
                   <input
                     id="exercise-form-name"
                     type="text"
@@ -875,18 +877,18 @@ export default function ExerciseProgression({
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Ex: Supino Reto com Halteres, Leg Press 45"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   />
                 </div>
 
                 {/* Category */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Categoria</label>
+                  <label className="text-[12px] text-[#9AA1AD] font-medium block">Categoria</label>
                   <select
                     id="exercise-form-category"
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     <option value="Hipertrofia">Hipertrofia</option>
                     <option value="Força">Força</option>
@@ -897,12 +899,12 @@ export default function ExerciseProgression({
 
                 {/* Target Muscle */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Músculo Alvo principal</label>
+                  <label className="text-[12px] text-[#9AA1AD] font-medium block">Músculo Alvo principal</label>
                   <select
                     id="exercise-form-muscle"
                     value={formMuscle}
                     onChange={(e) => setFormMuscle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs animate-none"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     {TARGET_MUSCLES_OPTIONS.map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -912,12 +914,12 @@ export default function ExerciseProgression({
 
                 {/* Equipment */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-slate-400 font-semibold block">Equipamento</label>
+                  <label className="text-[12px] text-[#9AA1AD] font-medium block">Equipamento</label>
                   <select
                     id="exercise-form-equipment"
                     value={formEquipment}
                     onChange={(e) => setFormEquipment(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white outline-none focus:border-lime-500 text-xs animate-none"
+                    className="w-full bg-[#1C1F26] border border-[rgba(255,255,255,0.08)] rounded-[12px] px-3 py-2.5 text-[#F2F3F5] outline-none focus:border-[#7C6CFF] text-[13px]"
                   >
                     {EQUIPMENT_OPTIONS.map(eq => (
                       <option key={eq} value={eq}>{eq}</option>
@@ -926,7 +928,7 @@ export default function ExerciseProgression({
                 </div>
 
                 {/* Save actions */}
-                <div className="flex gap-3 pt-3 border-t border-slate-850">
+                <div className="flex gap-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
                   <button
                     id="btn-cancel-save-exercise"
                     type="button"
@@ -934,14 +936,14 @@ export default function ExerciseProgression({
                       setShowExerciseFormModal(false);
                       setEditingExercise(null);
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 hover:text-white transition font-semibold text-center"
+                    className="flex-1 min-h-[44px] rounded-[12px] bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] hover:text-[#F2F3F5] transition font-medium text-[13px] text-center cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     id="btn-submit-save-exercise"
                     type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-lime-500 hover:bg-lime-600 text-slate-950 transition font-bold text-center shadow-lg shadow-lime-500/10"
+                    className="flex-1 min-h-[44px] rounded-[12px] bg-gradient-to-r from-[#7C6CFF] to-[#6A5BF0] hover:from-[#8E80FF] hover:to-[#7C6CFF] text-white transition font-medium text-[13px] text-center shadow-md shadow-[#7C6CFF]/20 cursor-pointer"
                   >
                     Salvar Exercício
                   </button>

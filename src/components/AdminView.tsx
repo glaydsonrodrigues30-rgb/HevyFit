@@ -177,28 +177,27 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
     <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8 space-y-6">
       
       {/* Admin header banner */}
-      <div className="bg-gradient-to-r from-red-950/20 via-slate-900 to-slate-900 border border-red-500/10 p-5 md:p-6 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl pointer-events-none" />
-        <div className="space-y-1.5 z-10">
+      <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-5 md:p-6 rounded-[24px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="space-y-1 z-10">
           <div className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-red-400" />
-            <span className="text-[10px] text-red-400 font-bold uppercase tracking-widest font-mono">Painel de Administração</span>
+            <Lock className="w-3.5 h-3.5 text-[#7C6CFF]" />
+            <span className="text-[11px] text-[#7C6CFF] font-semibold uppercase tracking-wider">Painel Administrativo</span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white font-sans">
-            Estatísticas Globais de <span className="text-lime-400">Usuários</span>
+          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-[#F2F3F5]">
+            Alunos &amp; <span className="text-[#7C6CFF]">Auditoria</span>
           </h2>
-          <p className="text-xs text-slate-400 leading-relaxed font-medium">
-            Acesso administrativo somente leitura para analisar e inspecionar auditorias de treino, progressão e peso corporal.
+          <p className="text-[13px] text-[#9AA1AD] leading-relaxed">
+            Acesso administrativo somente leitura para acompanhar treinos, evolução e peso dos alunos.
           </p>
         </div>
 
-        <div className="bg-slate-950 border border-slate-850 p-3 rounded-2xl flex items-center gap-3 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-400">
+        <div className="bg-[#1C1F26] border border-[rgba(255,255,255,0.07)] p-3 rounded-[16px] flex items-center gap-3 shrink-0">
+          <div className="w-10 h-10 rounded-[12px] bg-[#7C6CFF]/15 flex items-center justify-center text-[#7C6CFF]">
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[10px] text-slate-400 font-bold uppercase">Cadastrados</div>
-            <div className="text-lg font-mono font-bold text-white">{users.length} usuários</div>
+            <div className="text-[10px] text-[#9AA1AD] font-semibold uppercase">Cadastrados</div>
+            <div className="text-base font-semibold text-[#F2F3F5] tabular-nums">{users.length} usuários</div>
           </div>
         </div>
       </div>
@@ -216,27 +215,27 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
           >
             {/* Search Bar */}
             <div className="w-full relative">
-              <Search className="w-4 h-4 text-slate-500 absolute left-4.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-[#9AA1AD] absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 id="search-users-admin"
                 type="text"
-                placeholder="Pesquisar por nome, e-mail ou UID de aluno..."
+                placeholder="Pesquisar por nome, e-mail ou UID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-850 rounded-2xl pl-11 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-lime-500/40 focus:outline-none transition font-sans"
+                className="w-full bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[14px] pl-11 pr-4 py-3 text-[14px] text-[#F2F3F5] placeholder-[#9AA1AD]/50 focus:border-[#7C6CFF] focus:outline-none transition font-sans"
               />
             </div>
 
             {loadingUsers ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div id="admin-user-loading-spinner" className="w-8 h-8 rounded-full border-2 border-lime-400/20 border-t-lime-400 animate-spin" />
-                <span className="text-xs text-slate-400 font-medium select-none">Carregando lista de alunos protegida...</span>
+                <div id="admin-user-loading-spinner" className="w-8 h-8 rounded-full border-2 border-[#7C6CFF]/20 border-t-[#7C6CFF] animate-spin" />
+                <span className="text-[13px] text-[#9AA1AD] font-medium select-none">Carregando lista de alunos...</span>
               </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="bg-slate-900 border border-slate-850 rounded-3xl p-10 text-center space-y-2">
-                <Users className="w-8 h-8 text-slate-600 mx-auto" />
-                <p className="text-sm font-semibold text-slate-300">Nenhum aluno encontrado</p>
-                <p className="text-xs text-slate-500">Tente buscar usando termos alternativos ou e-mail exato.</p>
+              <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-10 text-center space-y-2">
+                <Users className="w-8 h-8 text-[#9AA1AD]/40 mx-auto" />
+                <p className="text-[15px] font-semibold text-[#F2F3F5]">Nenhum aluno encontrado</p>
+                <p className="text-[13px] text-[#9AA1AD]">Tente buscar usando outro termo ou e-mail.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,7 +245,7 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                     <motion.div
                       key={user.userId}
                       whileHover={{ scale: 1.01, y: -2 }}
-                      className="bg-slate-900 border border-slate-850 hover:border-slate-800 rounded-2xl p-4.5 flex flex-col justify-between gap-4 cursor-pointer transition relative overflow-hidden"
+                      className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.12)] rounded-[20px] p-4.5 flex flex-col justify-between gap-4 cursor-pointer transition relative overflow-hidden"
                       onClick={() => handleSelectUser(user)}
                     >
                       {/* User basic card info */}
@@ -256,48 +255,48 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                             src={user.photoURL} 
                             alt={user.displayName}
                             referrerPolicy="no-referrer"
-                            className="w-11 h-11 rounded-xl object-cover border border-slate-800"
+                            className="w-11 h-11 rounded-[12px] object-cover border border-[rgba(255,255,255,0.08)]"
                           />
                         ) : (
-                          <div className="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+                          <div className="w-11 h-11 rounded-[12px] bg-[#1C1F26] flex items-center justify-center text-[#9AA1AD]">
                             <User className="w-6 h-6" />
                           </div>
                         )}
                         <div className="space-y-0.5 truncate">
-                          <h3 className="font-bold text-white text-sm truncate">{user.displayName}</h3>
-                          <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                          <span className="text-[10px] text-slate-500 font-mono select-none block truncate">UID: {user.userId}</span>
+                          <h3 className="font-semibold text-[#F2F3F5] text-[14px] truncate">{user.displayName}</h3>
+                          <p className="text-[12px] text-[#9AA1AD] truncate">{user.email}</p>
+                          <span className="text-[10px] text-[#6B7280] select-none block truncate">UID: {user.userId}</span>
                         </div>
                       </div>
 
                       {/* Current cycle info & details */}
-                      <div className="bg-slate-950/65 rounded-xl p-3 border border-slate-850/40 space-y-2">
-                        <div className="flex justify-between items-center text-[10px]">
-                          <span className="text-slate-500 font-medium uppercase font-mono tracking-wider">Ciclo Atual</span>
+                      <div className="bg-[#1C1F26] rounded-[14px] p-3 border border-[rgba(255,255,255,0.05)] space-y-2">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-[#9AA1AD] font-medium">Ciclo Atual</span>
                           {hasCycle ? (
-                            <span className="bg-lime-500/10 text-lime-400 font-bold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wide">Ativo</span>
+                            <span className="bg-[#4ADE80]/15 text-[#4ADE80] font-semibold px-2 py-0.5 rounded-full text-[10px]">Ativo</span>
                           ) : (
-                            <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full text-[9px]">Inativo</span>
+                            <span className="bg-[#15171C] text-[#6B7280] px-2 py-0.5 rounded-full text-[10px]">Inativo</span>
                           )}
                         </div>
                         {hasCycle ? (
                           <div className="space-y-1">
-                            <p className="text-xs font-bold text-slate-200 truncate">{user.currentCycle?.name}</p>
-                            <div className="flex gap-3 text-[10px] text-slate-450 font-semibold">
+                            <p className="text-[13px] font-semibold text-[#F2F3F5] truncate">{user.currentCycle?.name}</p>
+                            <div className="flex gap-3 text-[11px] text-[#9AA1AD]">
                               <span>Foco: {user.currentCycle?.targetFocus || 'Hipertrofia'}</span>
                               <span>Semana: {getCycleCurrentWeek(user.currentCycle)}/{user.currentCycle?.durationWeeks}</span>
                             </div>
                           </div>
                         ) : (
-                          <p className="text-[11px] text-slate-500 italic">Sem ciclo de periodização cadastrado</p>
+                          <p className="text-[12px] text-[#6B7280] italic">Sem ciclo ativo</p>
                         )}
                       </div>
 
                       {/* Metadata row */}
-                      <div className="border-t border-slate-850/60 pt-3 flex justify-between items-center text-[10px] text-slate-500 font-medium">
-                        <span title="Data de criação no HevyFit">Criado: {formatPrettyDate(user.createdAt)}</span>
-                        <span className="flex items-center gap-1 text-lime-400/80 font-semibold group-hover:text-lime-400 transition">
-                          Visualizar Perfil <ChevronRight className="w-3 h-3" />
+                      <div className="border-t border-[rgba(255,255,255,0.06)] pt-3 flex justify-between items-center text-[11px] text-[#9AA1AD]">
+                        <span>Criado: {formatPrettyDate(user.createdAt)}</span>
+                        <span className="flex items-center gap-1 text-[#7C6CFF] font-medium group-hover:text-[#8E80FF] transition">
+                          Visualizar <ChevronRight className="w-3.5 h-3.5" />
                         </span>
                       </div>
                     </motion.div>
@@ -317,44 +316,44 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
             className="space-y-6"
           >
             {/* Nav back bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-850 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[rgba(255,255,255,0.07)] pb-4">
               <button
                 id="btn-back-to-users-admin"
                 onClick={() => {
                   setSelectedUser(null);
                   setSelectedUserData(null);
                 }}
-                className="flex items-center gap-2 text-slate-300 hover:text-white text-xs font-bold px-3.5 py-1.5 bg-slate-900 border border-slate-850 rounded-xl hover:bg-slate-850 transition cursor-pointer w-fit"
+                className="flex items-center gap-2 text-[#F2F3F5] text-[13px] font-medium px-4 py-2 bg-[#15171C] border border-[rgba(255,255,255,0.08)] rounded-[12px] hover:bg-[#1C1F26] transition cursor-pointer w-fit"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Voltar para Lista de Alunos</span>
               </button>
 
-              <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-3 py-1.5 rounded-xl font-bold font-mono">
-                <Lock className="w-3.5 h-3.5 animate-pulse" />
-                <span>MODO DE AUDITORIA: APENAS LEITURA</span>
+              <div className="flex items-center gap-2 bg-[#7C6CFF]/15 border border-[#7C6CFF]/25 text-[#7C6CFF] text-[12px] px-3 py-1.5 rounded-[10px] font-medium">
+                <Lock className="w-3.5 h-3.5" />
+                <span>MODO DE AUDITORIA (SOMENTE LEITURA)</span>
               </div>
             </div>
 
             {/* Profile banner metadata card */}
-            <div className="bg-slate-900 border border-slate-850 p-5 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
+            <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-5 rounded-[20px] flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
               <div className="flex gap-4 items-start md:items-center">
                 {selectedUser.photoURL ? (
                   <img 
                     src={selectedUser.photoURL} 
                     alt={selectedUser.displayName}
                     referrerPolicy="no-referrer"
-                    className="w-16 h-16 rounded-2xl object-cover border border-slate-850 shadow-lg"
+                    className="w-16 h-16 rounded-[16px] object-cover border border-[rgba(255,255,255,0.08)] shadow-lg"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-850 shadow-lg">
+                  <div className="w-16 h-16 rounded-[16px] bg-[#1C1F26] flex items-center justify-center text-[#9AA1AD] border border-[rgba(255,255,255,0.08)] shadow-lg">
                     <User className="w-8 h-8" />
                   </div>
                 )}
                 <div className="space-y-1">
-                  <h2 className="text-xl font-bold text-white leading-tight">{selectedUser.displayName}</h2>
-                  <p className="text-xs text-slate-450 leading-relaxed font-semibold">{selectedUser.email}</p>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500 font-mono mt-1 select-all">
+                  <h2 className="text-xl font-bold text-[#F2F3F5] leading-tight">{selectedUser.displayName}</h2>
+                  <p className="text-[13px] text-[#9AA1AD] leading-relaxed font-medium">{selectedUser.email}</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#6B7280] mt-1 select-all">
                     <span>UID: {selectedUser.userId}</span>
                     <span>Criado em: {formatPrettyDate(selectedUser.createdAt)}</span>
                   </div>
@@ -362,22 +361,22 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
               </div>
 
               {/* Current training block periodization */}
-              <div className="bg-slate-950 px-4.5 py-3 rounded-2xl border border-slate-850/60 w-full md:w-auto max-w-sm space-y-2">
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-500 font-mono uppercase tracking-wider">Metas da Periodização</span>
-                  <span className="text-lime-400 font-bold bg-lime-500/10 px-2 py-0.5 rounded-full text-[9px] uppercase font-mono tracking-wider">Ciclo Ativo</span>
+              <div className="bg-[#1C1F26] px-4.5 py-3.5 rounded-[16px] border border-[rgba(255,255,255,0.05)] w-full md:w-auto max-w-sm space-y-2">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-[#9AA1AD] font-medium">Metas da Periodização</span>
+                  <span className="text-[#4ADE80] font-semibold bg-[#4ADE80]/15 px-2 py-0.5 rounded-full text-[10px]">Ciclo Ativo</span>
                 </div>
                 {selectedUser.currentCycle ? (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-slate-100 truncate">{selectedUser.currentCycle.name}</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-slate-400 font-semibold font-mono">
+                  <div className="space-y-1">
+                    <p className="text-[13px] font-semibold text-[#F2F3F5] truncate">{selectedUser.currentCycle.name}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-[#9AA1AD] tabular-nums">
                       <span>Semana: {getCycleCurrentWeek(selectedUser.currentCycle)} de {selectedUser.currentCycle.durationWeeks}</span>
                       <span>Meta Peso: {selectedUser.currentCycle.goalWeight || '--'} kg</span>
                       <span className="col-span-2 truncate">Objetivo: {selectedUser.currentCycle.targetFocus || 'Não informado'}</span>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-500 italic py-1">O usuário não possui ciclo de treino/periodização ativo.</p>
+                  <p className="text-[12px] text-[#6B7280] italic py-1">Sem ciclo ativo cadastrado.</p>
                 )}
               </div>
             </div>
@@ -385,44 +384,44 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
             {/* Dashboard detail counters banner */}
             {selectedUserData && (
               <div className="grid grid-cols-3 gap-3 md:gap-4">
-                <div className="bg-slate-900 border border-slate-850 p-3 md:p-4 rounded-2xl flex items-center gap-3">
-                  <div className="p-2 bg-lime-500/10 text-lime-400 rounded-xl">
+                <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-3.5 md:p-4 rounded-[16px] flex items-center gap-3">
+                  <div className="p-2.5 bg-[#7C6CFF]/15 text-[#7C6CFF] rounded-[12px]">
                     <History className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-[9px] md:text-[10px] text-slate-450 font-bold uppercase select-none leading-none">Treinos Salvos</div>
-                    <div className="text-base md:text-xl font-mono font-bold text-white mt-0.5">{selectedUserData.history.length}</div>
+                    <div className="text-[10px] text-[#9AA1AD] font-semibold uppercase">Treinos Salvos</div>
+                    <div className="text-base md:text-xl font-semibold text-[#F2F3F5] tabular-nums mt-0.5">{selectedUserData.history.length}</div>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-850 p-3 md:p-4 rounded-2xl flex items-center gap-3">
-                  <div className="p-2 bg-sky-500/10 text-sky-400 rounded-xl">
+                <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-3.5 md:p-4 rounded-[16px] flex items-center gap-3">
+                  <div className="p-2.5 bg-sky-500/15 text-sky-400 rounded-[12px]">
                     <Dumbbell className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-[9px] md:text-[10px] text-slate-450 font-bold uppercase select-none leading-none">Rotinas Criadas</div>
-                    <div className="text-base md:text-xl font-mono font-bold text-white mt-0.5">{selectedUserData.routines.length}</div>
+                    <div className="text-[10px] text-[#9AA1AD] font-semibold uppercase">Rotinas Criadas</div>
+                    <div className="text-base md:text-xl font-semibold text-[#F2F3F5] tabular-nums mt-0.5">{selectedUserData.routines.length}</div>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-850 p-3 md:p-4 rounded-2xl flex items-center gap-3">
-                  <div className="p-2 bg-rose-500/10 text-rose-400 rounded-xl">
+                <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-3.5 md:p-4 rounded-[16px] flex items-center gap-3">
+                  <div className="p-2.5 bg-[#FF6B6B]/15 text-[#FF6B6B] rounded-[12px]">
                     <Scale className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-[9px] md:text-[10px] text-slate-450 font-bold uppercase select-none leading-none font-sans">Amostras de Peso</div>
-                    <div className="text-base md:text-xl font-mono font-bold text-white mt-0.5">{selectedUserData.weights.length}</div>
+                    <div className="text-[10px] text-[#9AA1AD] font-semibold uppercase">Pesagens</div>
+                    <div className="text-base md:text-xl font-semibold text-[#F2F3F5] tabular-nums mt-0.5">{selectedUserData.weights.length}</div>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Sub Nav Tab Selector */}
-            <div className="flex border-b border-slate-850">
+            <div className="flex border-b border-[rgba(255,255,255,0.07)] gap-2">
               {[
-                { id: 'workouts', label: 'Histórico de Treino', icon: History, colorClass: 'text-lime-400 border-lime-400' },
+                { id: 'workouts', label: 'Histórico de Treino', icon: History, colorClass: 'text-[#7C6CFF] border-[#7C6CFF]' },
                 { id: 'routines', label: 'Rotinas e Modelos', icon: Dumbbell, colorClass: 'text-sky-400 border-sky-400' },
-                { id: 'weights', label: 'Peso Corporal', icon: Scale, colorClass: 'text-rose-400 border-rose-400' }
+                { id: 'weights', label: 'Peso Corporal', icon: Scale, colorClass: 'text-[#FF6B6B] border-[#FF6B6B]' }
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = subTab === tab.id;
@@ -430,10 +429,10 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                   <button
                     key={tab.id}
                     onClick={() => setSubTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-3 text-[13px] font-medium transition border-b-2 cursor-pointer ${
                       isActive 
-                        ? `${tab.colorClass} bg-slate-900/30` 
-                        : 'text-slate-400 border-transparent hover:text-slate-200'
+                        ? `${tab.colorClass} bg-[#1C1F26]/40` 
+                        : 'text-[#9AA1AD] border-transparent hover:text-[#F2F3F5]'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -447,11 +446,11 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
             <div className="min-h-96">
               {loadingUserData ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-slate-800 border-t-white animate-spin" />
-                  <span className="text-xs text-slate-400 font-medium select-none">Buscando banco de transações do usuário...</span>
+                  <div className="w-8 h-8 rounded-full border-2 border-[#7C6CFF]/20 border-t-[#7C6CFF] animate-spin" />
+                  <span className="text-[13px] text-[#9AA1AD] font-medium select-none">Carregando dados do aluno...</span>
                 </div>
               ) : !selectedUserData ? (
-                <div className="text-center text-slate-500 py-10">Erro ao processar logs do banco Firestore.</div>
+                <div className="text-center text-[#9AA1AD] py-10">Erro ao carregar dados do usuário.</div>
               ) : (
                 <AnimatePresence mode="wait">
                   {subTab === 'workouts' && (
@@ -463,11 +462,11 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                       className="space-y-4"
                     >
                       {selectedUserData.history.length === 0 ? (
-                        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-8 text-center text-slate-500 text-xs italic">
+                        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-8 text-center text-[#9AA1AD] text-[13px] italic">
                           O usuário ainda não realizou ou salvou sessões de treino.
                         </div>
                       ) : (
-                        <div className="space-y-4.5">
+                        <div className="space-y-4">
                           {selectedUserData.history.map((workout) => {
                             const stats = calculateWorkoutSummary(workout);
                             const seconds = Math.floor(workout.durationMs / 1000);
@@ -486,61 +485,60 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                             });
 
                             return (
-                              <div key={workout.id} className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
+                              <div key={workout.id} className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-5 space-y-4">
                                 {/* Header of workout details */}
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-850/60 pb-3">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[rgba(255,255,255,0.06)] pb-3">
                                   <div>
-                                    <h4 className="font-extrabold text-white text-base font-sans">{workout.name}</h4>
-                                    <span className="text-[10px] text-lime-400 font-medium tracking-wide capitalize">{formattedDate}</span>
+                                    <h4 className="font-semibold text-[#F2F3F5] text-base">{workout.name}</h4>
+                                    <span className="text-[11px] text-[#7C6CFF] font-medium lowercase">{formattedDate}</span>
                                   </div>
-                                  <div className="flex gap-4 text-[11px] font-semibold text-slate-400 font-mono">
-                                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-500" /> {prettyDuration}</span>
-                                    <span>Volume: <span className="text-white font-bold">{stats.volume.toLocaleString('pt-BR')}kg</span></span>
-                                    <span>Séries: <span className="text-white font-bold">{stats.sets}</span></span>
+                                  <div className="flex gap-4 text-[12px] font-medium text-[#9AA1AD] tabular-nums">
+                                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-[#9AA1AD]" /> {prettyDuration}</span>
+                                    <span>Volume: <span className="text-[#F2F3F5] font-semibold">{stats.volume.toLocaleString('pt-BR')} kg</span></span>
+                                    <span>Séries: <span className="text-[#F2F3F5] font-semibold">{stats.sets}</span></span>
                                   </div>
                                 </div>
 
                                 {/* Comments if left by user */}
                                 {workout.comments && (
-                                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-850 text-xs text-slate-350 leading-relaxed font-medium">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Anotações do Treino:</div>
-                                    {workout.comments}
+                                  <div className="bg-[#1C1F26] p-3 rounded-[12px] border border-[rgba(255,255,255,0.05)] text-[13px] text-[#9AA1AD] leading-relaxed italic">
+                                    "{workout.comments}"
                                   </div>
                                 )}
 
                                 {/* Exercise matrix logged */}
-                                <div className="space-y-4.5">
+                                <div className="space-y-4">
                                   {workout.exercises.map((logEx, indexEx) => {
                                     const exInfo = exerciseById(logEx.exerciseId);
                                     return (
                                       <div key={logEx.exerciseId || indexEx} className="space-y-2">
-                                        <div className="flex items-center justify-between gap-2 border-l-2 border-lime-500 pl-3">
+                                        <div className="flex items-center justify-between gap-2 border-l-2 border-[#7C6CFF] pl-3">
                                           <div>
-                                            <h5 className="font-bold text-slate-100 text-xs">{exInfo?.name || logEx.exerciseId || 'Exercício Inexistente'}</h5>
-                                            <span className="text-[10px] text-slate-500 font-medium">{exInfo?.targetMuscle || 'Livre'} | {exInfo?.equipment || 'Halter'}</span>
+                                            <h5 className="font-semibold text-[#F2F3F5] text-[13px]">{exInfo?.name || logEx.exerciseId || 'Exercício Inexistente'}</h5>
+                                            <span className="text-[11px] text-[#9AA1AD]">{exInfo?.targetMuscle || 'Livre'} | {exInfo?.equipment || 'Halter'}</span>
                                           </div>
                                           {logEx.restTimer && (
-                                            <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-850 font-mono">Timer: {logEx.restTimer}s</span>
+                                            <span className="text-[11px] text-[#9AA1AD] bg-[#1C1F26] px-2 py-0.5 rounded-[8px] border border-[rgba(255,255,255,0.06)] tabular-nums">Timer: {logEx.restTimer}s</span>
                                           )}
                                         </div>
 
                                         {/* Set Rows table */}
-                                        <div className="bg-slate-950/70 border border-slate-850/40 rounded-xl overflow-hidden">
-                                          <div className="grid grid-cols-4 px-3 py-1.5 border-b border-slate-850/40 text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
+                                        <div className="bg-[#1C1F26]/70 border border-[rgba(255,255,255,0.05)] rounded-[12px] overflow-hidden">
+                                          <div className="grid grid-cols-4 px-3 py-1.5 border-b border-[rgba(255,255,255,0.05)] text-[10px] text-[#9AA1AD] font-medium uppercase tracking-wider">
                                             <span>Série</span>
                                             <span>Tipo</span>
                                             <span className="text-center">Carga (kg)</span>
                                             <span className="text-center">Repetições</span>
                                           </div>
-                                          <div className="divide-y divide-slate-850/30">
+                                          <div className="divide-y divide-[rgba(255,255,255,0.04)]">
                                             {logEx.sets.map((set, setIdx) => (
-                                              <div key={set.id || setIdx} className="grid grid-cols-4 px-3 py-2 text-xs font-medium text-slate-300">
-                                                <span className="text-slate-500 font-mono text-[10px] mt-0.5">#{setIdx + 1}</span>
-                                                <span className={`text-[10px] font-bold ${
-                                                  set.type === 'Aquecimento' ? 'text-amber-400/80' : set.type === 'Adaptação' ? 'text-sky-400/80' : 'text-lime-400/80'
+                                              <div key={set.id || setIdx} className="grid grid-cols-4 px-3 py-2 text-xs font-medium text-[#F2F3F5] tabular-nums">
+                                                <span className="text-[#6B7280] text-[11px]">#{setIdx + 1}</span>
+                                                <span className={`text-[10px] font-semibold ${
+                                                  set.type === 'Aquecimento' ? 'text-[#F5B84B]' : set.type === 'Adaptação' ? 'text-sky-400' : 'text-[#7C6CFF]'
                                                 }`}>{set.type || 'Trabalho'}</span>
-                                                <span className="text-center font-mono text-slate-200">{set.weight != null ? `${set.weight} kg` : '--'}</span>
-                                                <span className="text-center font-mono text-slate-200">{set.reps != null ? `${set.reps}` : '--'}</span>
+                                                <span className="text-center text-[#F2F3F5]">{set.weight != null ? `${set.weight} kg` : '--'}</span>
+                                                <span className="text-center text-[#F2F3F5]">{set.reps != null ? `${set.reps}` : '--'}</span>
                                               </div>
                                             ))}
                                           </div>
@@ -548,7 +546,7 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
 
                                         {/* Notes and progression observations if present */}
                                         {logEx.observations && (
-                                          <p className="text-[10px] text-slate-450 pl-3 leading-normal"><span className="text-[9px] text-slate-500 uppercase font-mono font-bold">Obs:</span> {logEx.observations}</p>
+                                          <p className="text-[11px] text-[#9AA1AD] pl-3 leading-normal"><span className="text-[10px] text-[#6B7280] font-medium uppercase">Obs:</span> {logEx.observations}</p>
                                         )}
                                       </div>
                                     );
@@ -571,40 +569,40 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                       className="grid grid-cols-1 md:grid-cols-2 gap-4"
                     >
                       {selectedUserData.routines.length === 0 ? (
-                        <div className="col-span-full bg-slate-900 border border-slate-850 rounded-2xl p-8 text-center text-slate-500 text-xs italic">
-                          O usuário ainda não criou diretórios ou rotinas salvas no HevyFit.
+                        <div className="col-span-full bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-8 text-center text-[#9AA1AD] text-[13px] italic">
+                          O usuário ainda não criou rotinas salvas no HevyFit.
                         </div>
                       ) : (
                         selectedUserData.routines.map((routine) => (
-                          <div key={routine.id} className="bg-slate-900 border border-slate-850 rounded-2xl p-4.5 space-y-3.5 flex flex-col justify-between">
+                          <div key={routine.id} className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-4.5 space-y-3.5 flex flex-col justify-between">
                             <div className="space-y-2">
                               <div className="flex justify-between items-start">
-                                <h4 className="font-bold text-white text-base leading-tight">{routine.name}</h4>
-                                <span className="bg-sky-500/10 text-sky-400 text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full font-mono">Template</span>
+                                <h4 className="font-semibold text-[#F2F3F5] text-base leading-tight">{routine.name}</h4>
+                                <span className="bg-sky-500/15 text-sky-400 text-[10px] font-semibold px-2 py-0.5 rounded-full">Modelo</span>
                               </div>
                               {routine.description && (
-                                <p className="text-xs text-slate-400 font-medium leading-relaxed bg-slate-950/40 border border-slate-850/50 p-2.5 rounded-xl">{routine.description}</p>
+                                <p className="text-[12px] text-[#9AA1AD] leading-relaxed bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] p-2.5 rounded-[12px]">{routine.description}</p>
                               )}
 
                               <div className="space-y-2 pt-2">
-                                <span className="text-[10px] text-slate-500 uppercase font-mono font-bold tracking-wider">Exercícios Selecionados ({routine.exercises.length}):</span>
+                                <span className="text-[11px] text-[#9AA1AD] font-medium">Exercícios ({routine.exercises.length}):</span>
                                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                   {routine.exercises.map((item, exIdx) => {
                                     const exInfo = exerciseById(item.exerciseId);
                                     return (
-                                      <div key={item.exerciseId || exIdx} className="bg-slate-950 p-2.5 border border-slate-850/50 rounded-xl space-y-1">
+                                      <div key={item.exerciseId || exIdx} className="bg-[#1C1F26] p-2.5 border border-[rgba(255,255,255,0.05)] rounded-[12px] space-y-1">
                                         <div className="flex justify-between gap-2 items-start">
-                                          <span className="text-xs font-extrabold text-slate-100 truncate">{exInfo?.name || item.exerciseId || 'Exercício'}</span>
+                                          <span className="text-[13px] font-semibold text-[#F2F3F5] truncate">{exInfo?.name || item.exerciseId || 'Exercício'}</span>
                                         </div>
-                                        <div className="flex flex-wrap gap-1 pt-1">
+                                        <div className="flex flex-wrap gap-1.5 pt-1">
                                           {item.sets.map((set, setIdx) => (
-                                            <span key={setIdx} className="text-[9px] font-mono font-bold bg-slate-900 border border-slate-850 text-slate-400 px-1.5 py-0.5 rounded">
+                                            <span key={setIdx} className="text-[10px] tabular-nums bg-[#15171C] border border-[rgba(255,255,255,0.07)] text-[#9AA1AD] px-2 py-0.5 rounded-[8px]">
                                               #{setIdx + 1}: {set.reps} reps @ {set.weight}kg
                                             </span>
                                           ))}
                                         </div>
                                         {item.progressionNotes && (
-                                          <p className="text-[9px] text-slate-500 italic font-medium pt-0.5">Progresso: {item.progressionNotes}</p>
+                                          <p className="text-[11px] text-[#9AA1AD] italic pt-0.5">Progresso: {item.progressionNotes}</p>
                                         )}
                                       </div>
                                     );
@@ -627,14 +625,14 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                       className="space-y-4"
                     >
                       {selectedUserData.weights.length === 0 ? (
-                        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-8 text-center text-slate-500 text-xs italic">
+                        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-8 text-center text-[#9AA1AD] text-[13px] italic">
                           O usuário ainda não registrou pesos corporais no diário.
                         </div>
                       ) : (
-                        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-5 space-y-4">
-                          <div className="flex items-center gap-2 border-b border-slate-850/80 pb-3">
-                            <Scale className="w-4 h-4 text-rose-400" />
-                            <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider">Histórico de Peso de {selectedUser.displayName}</h4>
+                        <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] rounded-[20px] p-5 space-y-4">
+                          <div className="flex items-center gap-2 border-b border-[rgba(255,255,255,0.07)] pb-3">
+                            <Scale className="w-4 h-4 text-[#FF6B6B]" />
+                            <h4 className="font-semibold text-[#F2F3F5] text-sm">Histórico de Peso de {selectedUser.displayName}</h4>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -669,17 +667,17 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
                                 }
 
                                 return (
-                                  <div key={entry.id} className="bg-slate-950 p-3 rounded-xl border border-slate-850/70 flex justify-between items-center text-xs">
+                                  <div key={entry.id} className="bg-[#1C1F26] p-3 rounded-[12px] border border-[rgba(255,255,255,0.05)] flex justify-between items-center text-xs">
                                     <div className="space-y-0.5">
-                                      <span className="font-mono text-[10px] text-slate-500 block leading-none">{formatted}</span>
-                                      <span className="font-mono font-bold text-white text-sm">{entry.weight.toFixed(1)} kg</span>
+                                      <span className="text-[11px] text-[#9AA1AD] block">{formatted}</span>
+                                      <span className="font-semibold text-[#F2F3F5] text-sm tabular-nums">{entry.weight.toFixed(1)} kg</span>
                                       {entry.note && (
-                                        <p className="text-[10px] text-slate-400 font-medium leading-tight pt-1">Nota: {entry.note}</p>
+                                        <p className="text-[11px] text-[#9AA1AD] pt-1">Nota: {entry.note}</p>
                                       )}
                                     </div>
                                     {diffText && (
-                                      <div className={`text-[10px] font-mono font-extrabold flex items-center gap-0.5 px-2 py-0.5 rounded-md ${
-                                        isUp ? 'text-rose-400 bg-rose-500/5' : isDown ? 'text-lime-400 bg-lime-500/5' : 'text-slate-400 bg-slate-900'
+                                      <div className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-[8px] tabular-nums ${
+                                        isUp ? 'text-[#FF6B6B] bg-[#FF6B6B]/15' : isDown ? 'text-[#4ADE80] bg-[#4ADE80]/15' : 'text-[#9AA1AD] bg-[#15171C]'
                                       }`}>
                                         {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : isDown ? <TrendingDown className="w-3.5 h-3.5" /> : null}
                                         <span>{diffText}</span>
@@ -692,27 +690,27 @@ export default function AdminView({ currentUser, availableExercises = INITIAL_EX
 
                             {/* Minimal informational stats helper box */}
                             <div className="space-y-3.5">
-                              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-850/60 flex flex-col justify-between h-full">
+                              <div className="bg-[#1C1F26] rounded-[16px] p-4 border border-[rgba(255,255,255,0.05)] flex flex-col justify-between h-full">
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-1.5">
-                                    <Info className="w-4 h-4 text-rose-400" />
-                                    <h5 className="font-bold text-white text-xs uppercase tracking-wider font-mono">Estatísticas do Peso</h5>
+                                    <Info className="w-4 h-4 text-[#7C6CFF]" />
+                                    <h5 className="font-semibold text-[#F2F3F5] text-xs">Estatísticas do Peso</h5>
                                   </div>
-                                  <p className="text-[11px] text-slate-450 leading-relaxed font-semibold">
+                                  <p className="text-[12px] text-[#9AA1AD] leading-relaxed">
                                     A evolução do peso corporal do aluno auxilia no acompanhamento da ingestão calórica e da hipertrofia sob o ciclo de periodização.
                                   </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 pt-4">
-                                  <div className="bg-slate-900 border border-slate-850 p-2.5 rounded-xl">
-                                    <span className="text-[9px] text-slate-500 font-bold uppercase font-mono block leading-none">Peso Atual</span>
-                                    <span className="text-sm font-mono font-extrabold text-white">
+                                  <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-3 rounded-[12px]">
+                                    <span className="text-[10px] text-[#9AA1AD] font-semibold uppercase block">Peso Atual</span>
+                                    <span className="text-base font-semibold text-[#F2F3F5] tabular-nums">
                                       {selectedUserData.weights[0]?.weight?.toFixed(1) || '--'} kg
                                     </span>
                                   </div>
-                                  <div className="bg-slate-900 border border-slate-850 p-2.5 rounded-xl">
-                                    <span className="text-[9px] text-slate-500 font-bold uppercase font-mono block leading-none">Amostras</span>
-                                    <span className="text-sm font-mono font-extrabold text-white">
+                                  <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-3 rounded-[12px]">
+                                    <span className="text-[10px] text-[#9AA1AD] font-semibold uppercase block">Pesagens</span>
+                                    <span className="text-base font-semibold text-[#F2F3F5] tabular-nums">
                                       {selectedUserData.weights.length}
                                     </span>
                                   </div>
