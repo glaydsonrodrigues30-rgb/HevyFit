@@ -82,7 +82,7 @@ export default function RunningTracker({
   const [runDate, setRunDate] = useState<string>(() => {
     if (initialPrefill?.date) return initialPrefill.date;
     const now = new Date();
-    return now.toISOString().split('T')[0];
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
   });
 
   const [selectedChipType, setSelectedChipType] = useState<string>(() => {
