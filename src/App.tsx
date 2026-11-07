@@ -32,7 +32,8 @@ import {
   Footprints,
   ChevronDown
 } from 'lucide-react';
-import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek, RunLog, TafWorkoutDef } from './types';
+import { ActiveWorkout, Exercise, SetType, TrainingCycle, WeightEntry, WorkoutHistory, WorkoutRoutine, StandardWorkout, StandardExercise, ExerciseWorkoutState, getCycleCurrentWeek, RunLog, TafWorkoutDef, RunPlanConfig } from './types';
+import { setActivePlan } from './lib/tafPlanData';
 import { TEXTS } from './texts';
 import {
   INITIAL_EXERCISES,
@@ -339,6 +340,9 @@ export default function App() {
               setRuns(data.runs);
               localStorage.setItem('hevyfit_runs', JSON.stringify(data.runs));
             }
+            if (data.runPlan !== undefined) {
+              setActivePlan(data.runPlan as RunPlanConfig);
+            }
 
             // Always update basic info to keep admin user list current
             await setDoc(userDocRef, {
@@ -489,6 +493,10 @@ export default function App() {
         if (data.runs !== undefined) {
           setRuns(data.runs as RunLog[]);
           localStorage.setItem('hevyfit_runs', JSON.stringify(data.runs));
+        }
+
+        if (data.runPlan !== undefined) {
+          setActivePlan(data.runPlan as RunPlanConfig);
         }
       }
     }, (error) => {
@@ -961,6 +969,19 @@ export default function App() {
     }
   };
 
+  // Plano de corrida editável: salvo na conta (campo runPlan) e em cache local
+  const handleSaveRunPlan = async (plan: RunPlanConfig) => {
+    const clean = JSON.parse(JSON.stringify(plan)) as RunPlanConfig; // remove campos undefined (Firestore não aceita)
+    setActivePlan(clean);
+    if (currentUser && auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), { runPlan: clean }, { merge: true });
+      } catch (error) {
+        console.error('Erro ao salvar o plano de corrida na nuvem:', error);
+      }
+    }
+  };
+
   const handleStartRunFromTaf = (workout: TafWorkoutDef, weekNumber: number) => {
     setPendingTafRun({
       type: workout.type,
@@ -970,7 +991,8 @@ export default function App() {
       rpe: workout.intensityLabel === 'Simulado' ? 9 : workout.intensityLabel === 'Leve' ? 5 : 7,
       notes: `${workout.title} (${weekNumber > 0 ? `Semana ${weekNumber}` : 'Teste Pré-Plano'}) • Aquecimento: ${workout.warmup} • Inclinação: 1% na esteira • Volta à calma: ${workout.cooldown}`,
       intervals: workout.intervals,
-      tafWeekNumber: weekNumber > 0 ? weekNumber : undefined
+      tafWeekNumber: weekNumber > 0 ? weekNumber : undefined,
+      tafWorkoutKey: workout.key === 'A' || workout.key === 'B' || workout.key === 'C' ? workout.key : undefined
     });
     setActiveTab('running');
   };
@@ -989,6 +1011,7 @@ export default function App() {
       localStorage.removeItem('hevyfit_is_guest');
       localStorage.removeItem('hevyfit_local_user');
       localStorage.removeItem('hevyfit_runs');
+      setActivePlan(null);
       // Reset to original mock memory loads
       setHistory(INITIAL_HISTORY);
       setWeightHistory(INITIAL_WEIGHT_HISTORY);
@@ -1867,6 +1890,7 @@ export default function App() {
             runs={runs}
             onStartRunFromTaf={handleStartRunFromTaf}
             onNavigateToRuns={() => setActiveTab('running')}
+            onSavePlan={handleSaveRunPlan}
           />
         )}
 

@@ -35,7 +35,11 @@ import {
   SPEED_REFERENCE_TABLE,
   getTafCurrentStatus,
   getTodayTafWorkout,
-  TAF_PRE_TEST_WORKOUT
+  TAF_PRE_TEST_WORKOUT,
+  useActivePlan,
+  goalSpeedKmh,
+  goalPaceStr,
+  metersLabel
 } from '../lib/tafPlanData';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -57,8 +61,12 @@ export default function RunningTracker({
   onClearPrefill
 }: RunningTrackerProps) {
   // Today's TAF workout calculation
-  const todayTaf = useMemo(() => getTodayTafWorkout(), []);
-  const currentTafStatus = useMemo(() => getTafCurrentStatus(), []);
+  const plan = useActivePlan();
+  const goal = plan.goal;
+  const goalKmh = goalSpeedKmh(goal);
+  const goalKmhText = goalKmh.toFixed(1).replace('.', ',');
+  const todayTaf = useMemo(() => getTodayTafWorkout(new Date(), plan), [plan]);
+  const currentTafStatus = useMemo(() => getTafCurrentStatus(new Date(), plan), [plan]);
 
   // Form visibility state (modal / bottom sheet)
   const [showFormModal, setShowFormModal] = useState<boolean>(() => !!initialPrefill);
@@ -94,7 +102,7 @@ export default function RunningTracker({
 
   const [durationMinutes, setDurationMinutes] = useState<number>(() => {
     if (initialPrefill?.durationMinutes) return initialPrefill.durationMinutes;
-    if (todayTaf.isBeforeStart) return 12;
+    if (todayTaf.isBeforeStart) return goal.minutes;
     if (todayTaf.todayWorkout?.suggestedDurationMinutes) return todayTaf.todayWorkout.suggestedDurationMinutes;
     return 20;
   });
@@ -165,10 +173,10 @@ export default function RunningTracker({
   const isTargetAchieved = useMemo(() => {
     if (parsedDistance <= 0 || durationMinutes <= 0) return false;
     if (selectedChipType === 'Simulado 12 min') {
-      return distanceMeters >= 2200;
+      return distanceMeters >= goal.distanceMeters;
     }
-    return calculatedStats.paceSecondsPerKm > 0 && calculatedStats.paceSecondsPerKm <= 327 && durationMinutes >= 12;
-  }, [selectedChipType, distanceMeters, calculatedStats.paceSecondsPerKm, durationMinutes, parsedDistance]);
+    return calculatedStats.paceSecondsPerKm > 0 && calculatedStats.paceSecondsPerKm <= Math.round(3600 / goalKmh) && durationMinutes >= goal.minutes;
+  }, [selectedChipType, distanceMeters, calculatedStats.paceSecondsPerKm, durationMinutes, parsedDistance, goal.distanceMeters, goal.minutes, goalKmh]);
 
   // Validation flag: Duration and Distance must both be greater than 0
   const isFormValid = durationMinutes > 0 && parsedDistance > 0;
@@ -227,7 +235,8 @@ export default function RunningTracker({
       intervals: intervals.length > 0 ? intervals : undefined,
       notes: notes.trim() || undefined,
       tafTargetAchieved: isTargetAchieved,
-      tafWeekNumber: currentTafStatus.currentWeekNumber > 0 ? currentTafStatus.currentWeekNumber : undefined,
+      tafWeekNumber: initialPrefill?.tafWeekNumber ?? (currentTafStatus.currentWeekNumber > 0 ? currentTafStatus.currentWeekNumber : undefined),
+      tafWorkoutKey: initialPrefill?.tafWorkoutKey,
       createdAt: new Date().toISOString()
     };
 
@@ -270,7 +279,7 @@ export default function RunningTracker({
     const totalRuns = monthRuns.length;
     const totalKm = monthRuns.reduce((acc, r) => acc + (r.distanceKm || 0), 0);
 
-    const allSimulations = runs.filter(r => r.type === 'Simulado 12 min' || r.durationMinutes === 12);
+    const allSimulations = runs.filter(r => r.type === 'Simulado 12 min' || r.durationMinutes === goal.minutes);
     let bestSimMeters = 0;
     allSimulations.forEach(s => {
       const m = Math.round((s.distanceKm || 0) * 1000);
@@ -282,14 +291,16 @@ export default function RunningTracker({
       km: totalKm.toFixed(1),
       bestSimMeters
     };
-  }, [runs]);
+  }, [runs, goal.minutes]);
 
   // Simulation runs for progression chart (requires >= 2 simulations)
   const simulationRuns = useMemo(() => {
     return runs
-      .filter(r => r.type === 'Simulado 12 min' || (r.durationMinutes === 12 && r.distanceKm > 1.5))
+      .filter(r => r.type === 'Simulado 12 min' || (r.durationMinutes === goal.minutes && r.distanceKm > (goal.distanceMeters / 1000) * 0.7))
       .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-  }, [runs]);
+  }, [runs, goal.minutes, goal.distanceMeters]);
+
+  const chartMax = Math.max(2600, Math.round(goal.distanceMeters * 1.18));
 
   return (
     <div id="running-tracker-view" className="space-y-6">
@@ -311,7 +322,7 @@ export default function RunningTracker({
             onClick={onNavigateToTafPlan}
             className="text-[12px] text-[#9AA1AD] hover:text-[#2DD4BF] flex items-center gap-1 transition cursor-pointer"
           >
-            <span>Ver Plano TAF</span>
+            <span>Ver plano</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -322,29 +333,29 @@ export default function RunningTracker({
           <div className="space-y-3">
             <div>
               <h2 className="text-[20px] font-semibold text-[#F2F3F5] tracking-tight">
-                Teste Inicial: 12 min na esteira
+                Teste Inicial: {goal.minutes} min na esteira
               </h2>
               <p className="text-[14px] text-[#9AA1AD] mt-1 leading-relaxed">
-                O plano oficial começa em 16/11 (faltam {todayTaf.status.daysUntilStart} dias). Faça o teste de 12 min para calibrar seu ritmo de largada.
+                O plano oficial começa em {todayTaf.status.startDateFormatted.slice(0, 5)} (faltam {todayTaf.status.daysUntilStart} dias). Faça o teste de {goal.minutes} min para calibrar seu ritmo de largada.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#9AA1AD]">
               <span className="px-2.5 py-1 rounded-[8px] bg-[#1C1F26] border border-[rgba(255,255,255,0.06)] tabular-nums">
-                ⏱️ 12 minutos
+                ⏱️ {goal.minutes} minutos
               </span>
               <span className="px-2.5 py-1 rounded-[8px] bg-[#1C1F26] border border-[rgba(255,255,255,0.06)]">
                 📐 1% de inclinação
               </span>
               <span className="px-2.5 py-1 rounded-[8px] bg-[#1C1F26] border border-[rgba(255,255,255,0.06)]">
-                🎯 Meta: 2.200 m (11 km/h)
+                🎯 Meta: {metersLabel(goal.distanceMeters)} ({goalKmhText} km/h)
               </span>
             </div>
 
             <button
               id="btn-start-initial-test"
               type="button"
-              onClick={() => handleOpenRegister('Simulado 12 min', 12, undefined, 'Teste inicial de 12 minutos na esteira com 1%')}
+              onClick={() => handleOpenRegister('Simulado 12 min', goal.minutes, undefined, `Teste inicial de ${goal.minutes} minutos na esteira com 1%`)}
               className="w-full sm:w-auto min-h-[48px] px-6 rounded-[14px] bg-[#2DD4BF] hover:bg-[#20b8a5] text-[#0E0F13] font-semibold text-[14px] flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer shadow-md shadow-[#2DD4BF]/20"
             >
               <Award className="w-4 h-4 stroke-[2.5]" />
@@ -435,7 +446,7 @@ export default function RunningTracker({
             {monthStats.bestSimMeters > 0 ? `${monthStats.bestSimMeters}m` : '--'}
           </p>
           <span className="text-[10px] text-[#9AA1AD]">
-            {monthStats.bestSimMeters >= 2200 ? '🏆 Meta batida' : 'Meta: 2.200m'}
+            {monthStats.bestSimMeters >= goal.distanceMeters ? '🏆 Meta batida' : `Meta: ${metersLabel(goal.distanceMeters)}`}
           </span>
         </div>
       </section>
@@ -448,11 +459,11 @@ export default function RunningTracker({
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4 text-[#2DD4BF]" />
                 <h3 className="text-[15px] font-semibold text-[#F2F3F5]">
-                  Evolução nos Simulados de 12 min
+                  Evolução nos Simulados de {goal.minutes} min
                 </h3>
               </div>
               <p className="text-[12px] text-[#9AA1AD] mt-0.5">
-                Meta do TAF: 2.200 m (11,0 km/h • 5:27/km)
+                Meta: {metersLabel(goal.distanceMeters)} ({goalKmhText} km/h • {goalPaceStr(goal)})
               </p>
             </div>
             <span className="text-[11px] font-medium text-[#9AA1AD] tabular-nums">
@@ -463,8 +474,8 @@ export default function RunningTracker({
           <div className="space-y-2.5 pt-1">
             {simulationRuns.map((sim, idx) => {
               const m = Math.round(sim.distanceKm * 1000);
-              const passed = m >= 2200;
-              const pct = Math.min(100, Math.round((m / 2600) * 100));
+              const passed = m >= goal.distanceMeters;
+              const pct = Math.min(100, Math.round((m / chartMax) * 100));
 
               return (
                 <div key={sim.id} className="p-3 rounded-[14px] bg-[#1C1F26] border border-[rgba(255,255,255,0.04)] space-y-2">
@@ -486,11 +497,11 @@ export default function RunningTracker({
                       {passed ? (
                         <span className="text-[11px] font-semibold text-[#4ADE80] flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>+{m - 2200} m</span>
+                          <span>+{m - goal.distanceMeters} m</span>
                         </span>
                       ) : (
                         <span className="text-[11px] font-medium text-[#F5B84B]">
-                          faltam {2200 - m} m
+                          faltam {goal.distanceMeters - m} m
                         </span>
                       )}
                     </div>
@@ -501,8 +512,8 @@ export default function RunningTracker({
                     {/* 2200m vertical mark */}
                     <div
                       className="absolute top-0 bottom-0 w-0.5 bg-white/40 z-10"
-                      style={{ left: `${(2200 / 2600) * 100}%` }}
-                      title="Meta 2.200m"
+                      style={{ left: `${(goal.distanceMeters / chartMax) * 100}%` }}
+                      title={`Meta ${metersLabel(goal.distanceMeters)}`}
                     />
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
@@ -633,7 +644,7 @@ export default function RunningTracker({
                       { id: 'A leve/continuo', label: 'Corrida A (Leve)' },
                       { id: 'B fartlek ou trote-caminhada', label: 'Corrida B (Fartlek)' },
                       { id: 'C moderado ou tiros', label: 'Corrida C (Tiros)' },
-                      { id: 'Simulado 12 min', label: 'Simulado 12 min' },
+                      { id: 'Simulado 12 min', label: `Simulado ${goal.minutes} min` },
                       { id: 'Teste', label: 'Teste' },
                     ].map((chip) => {
                       const isSel = selectedChipType === chip.id;
@@ -644,7 +655,7 @@ export default function RunningTracker({
                           onClick={() => {
                             setSelectedChipType(chip.id);
                             if (chip.id === 'Simulado 12 min') {
-                              setDurationMinutes(12);
+                              setDurationMinutes(goal.minutes);
                             }
                           }}
                           className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition cursor-pointer ${
@@ -740,14 +751,14 @@ export default function RunningTracker({
 
                   {selectedChipType === 'Simulado 12 min' && (
                     <div className="text-right">
-                      <span className="text-[11px] text-[#6B7280] block font-medium">Meta 2.200 m</span>
-                      {distanceMeters >= 2200 ? (
+                      <span className="text-[11px] text-[#6B7280] block font-medium">Meta {metersLabel(goal.distanceMeters)}</span>
+                      {distanceMeters >= goal.distanceMeters ? (
                         <span className="text-[13px] font-semibold text-[#4ADE80] tabular-nums">
                           {distanceMeters} m (Aprovado!)
                         </span>
                       ) : (
                         <span className="text-[13px] font-semibold text-[#F5B84B] tabular-nums">
-                          faltam {2200 - distanceMeters} m
+                          faltam {goal.distanceMeters - distanceMeters} m
                         </span>
                       )}
                     </div>

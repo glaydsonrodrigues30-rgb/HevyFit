@@ -155,7 +155,8 @@ export interface RunLog {
   intervals?: RunInterval[];
   notes?: string;
   tafTargetAchieved?: boolean; // True if >= 2.2km in 12 min or pace <= 5:27/km
-  tafWeekNumber?: number; // 1 to 17
+  tafWeekNumber?: number; // semana do plano (1..N)
+  tafWorkoutKey?: 'A' | 'B' | 'C'; // qual treino da semana foi feito
   createdAt?: string;
 }
 
@@ -218,8 +219,8 @@ export interface TafWorkoutDef {
 
 export interface TafWeekDef {
   weekNumber: number;
-  phaseNumber: 1 | 2 | 3 | 4;
-  phaseName: 'Base' | 'Resistência' | 'Ritmo-alvo' | 'Específico e pico';
+  phaseNumber: number;
+  phaseName: string;
   phaseGoals: string;
   startDate: string; // e.g. "16/11/2026"
   endDate: string; // e.g. "22/11/2026"
@@ -230,5 +231,19 @@ export interface TafWeekDef {
   };
 }
 
+// Meta geral do plano de corrida (editável no app)
+export interface RunGoal {
+  name: string; // ex.: "TAF Polícia Civil"
+  distanceMeters: number; // ex.: 2200
+  minutes: number; // ex.: 12
+  examDate: string; // YYYY-MM-DD (data da prova/meta)
+}
 
-
+// Plano de corrida completo, salvo na conta do usuário
+export interface RunPlanConfig {
+  name: string;
+  goal: RunGoal;
+  startDate: string; // YYYY-MM-DD, sempre uma segunda-feira
+  weeks: TafWeekDef[];
+  updatedAt: number;
+}

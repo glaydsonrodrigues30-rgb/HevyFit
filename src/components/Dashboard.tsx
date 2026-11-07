@@ -28,7 +28,7 @@ import {
   RunLog,
   ActiveWorkout 
 } from '../types';
-import { getTodayTafWorkout, TAF_PRE_TEST_WORKOUT } from '../lib/tafPlanData';
+import { getTodayTafWorkout, getTafCurrentStatus, useActivePlan, buildPreTest } from '../lib/tafPlanData';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface DashboardProps {
@@ -100,7 +100,8 @@ export default function Dashboard({
   }, [today]);
 
   // TAF running workout status for today
-  const todayTaf = useMemo(() => getTodayTafWorkout(), []);
+  const runPlan = useActivePlan();
+  const todayTaf = useMemo(() => getTodayTafWorkout(new Date(), runPlan), [runPlan]);
 
   // Today scheduled routine based on dayOfWeek (1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab, 0=Dom)
   const todayRoutine = useMemo(() => {
@@ -151,13 +152,14 @@ export default function Dashboard({
 
       // Check if run was completed on this date
       const hasRunDone = runs.some(r => new Date(r.timestamp || r.date).toDateString() === dateStr);
-      // TAF runs are planned on Monday (1), Wednesday (3), Saturday (6)
-      const hasRunPlanned = dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 6;
-
-      let runInfo = 'Sem corrida planejada';
-      if (dayOfWeek === 1) runInfo = 'Corrida A (Contínuo leve / tiros)';
-      else if (dayOfWeek === 3) runInfo = 'Corrida B (Fartlek ou trote/caminhada)';
-      else if (dayOfWeek === 6) runInfo = 'Corrida C (Contínuo moderado ou simulado)';
+      // Corrida planejada vem do plano editável (dia da semana de cada treino da semana do plano)
+      const planStatus = getTafCurrentStatus(d, runPlan);
+      const plannedRun = !planStatus.isBeforeStart && !planStatus.isAfterEnd
+        ? [planStatus.currentWeek.workouts.A, planStatus.currentWeek.workouts.B, planStatus.currentWeek.workouts.C]
+            .find(w => w.suggestedDurationMinutes > 0 && w.dayOfWeek === dayOfWeek) || null
+        : null;
+      const hasRunPlanned = Boolean(plannedRun);
+      const runInfo = plannedRun ? plannedRun.title : 'Sem corrida planejada';
 
       return {
         date: d,
@@ -174,7 +176,7 @@ export default function Dashboard({
         runInfo
       };
     });
-  }, [today, todayDayIndex, history, routines, runs]);
+  }, [today, todayDayIndex, history, routines, runs, runPlan]);
 
   // Weekly progress chip (e.g. "3 de 5 treinos esta semana")
   const weeklyStats = useMemo(() => {
@@ -534,7 +536,7 @@ export default function Dashboard({
             </button>
           </div>
         ) : todayTaf.isBeforeStart ? (
-          /* Pré-início do plano TAF (antes de 16/11/2026) */
+          /* Pré-início do plano TAF (antes do início do plano) */
           <div className="bg-[#15171C] border border-[rgba(255,255,255,0.07)] hover:border-[#2DD4BF]/30 rounded-[20px] p-5 space-y-3 transition">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-medium text-[#2DD4BF] flex items-center gap-1.5">
@@ -542,16 +544,16 @@ export default function Dashboard({
                 Corrida · Plano TAF
               </span>
               <span className="text-[12px] text-[#9AA1AD] tabular-nums">
-                Início em 16/11 ({todayTaf.status.daysUntilStart} dias)
+                Início em {todayTaf.status.startDateFormatted.slice(0, 5)} ({todayTaf.status.daysUntilStart} dias)
               </span>
             </div>
 
             <div>
               <h3 className="text-[17px] font-semibold text-[#F2F3F5] tracking-tight">
-                O plano de corrida começa em 16/11
+                O plano de corrida começa em {todayTaf.status.startDateFormatted.slice(0, 5)}
               </h3>
               <p className="text-[14px] text-[#9AA1AD] mt-0.5 leading-relaxed">
-                Antes do início oficial, faça o teste inicial de 12 minutos na esteira para calibrar seu ritmo base.
+                Antes do início oficial, faça o teste inicial de {runPlan.goal.minutes} minutos na esteira para calibrar seu ritmo base.
               </p>
             </div>
 
@@ -560,7 +562,7 @@ export default function Dashboard({
               type="button"
               onClick={() => {
                 if (onStartRunFromTaf) {
-                  onStartRunFromTaf(TAF_PRE_TEST_WORKOUT, 0);
+                  onStartRunFromTaf(buildPreTest(runPlan.goal), 0);
                 } else {
                   onNavigate('running');
                 }
@@ -568,7 +570,7 @@ export default function Dashboard({
               className="w-full min-h-[48px] rounded-[14px] bg-[#1C1F26] hover:bg-[#222630] border border-[#2DD4BF]/30 hover:border-[#2DD4BF]/60 text-[#2DD4BF] font-semibold text-[14px] flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>Fazer teste inicial (12 min)</span>
+              <span>Fazer teste inicial ({runPlan.goal.minutes} min)</span>
             </button>
           </div>
         ) : todayTaf.isRunDay && todayTaf.todayWorkout ? (

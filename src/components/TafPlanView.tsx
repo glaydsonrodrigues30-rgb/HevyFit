@@ -12,33 +12,39 @@ import {
   Sparkles,
   Timer,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Pencil
 } from 'lucide-react';
-import { TafWeekDef, TafWorkoutDef, RunLog } from '../types';
+import { TafWeekDef, TafWorkoutDef, RunLog, RunPlanConfig } from '../types';
 import {
-  TAF_WEEKS,
-  TAF_PHASES_INFO,
-  TAF_TARGET_METERS,
-  TAF_TARGET_MINUTES,
-  TAF_TARGET_SPEED_KMH,
-  TAF_TARGET_PACE_STR,
-  TAF_PRE_TEST_WORKOUT,
-  getTafCurrentStatus
+  useActivePlan,
+  derivePhases,
+  getTafCurrentStatus,
+  goalPaceStr,
+  goalSpeedKmh,
+  metersLabel
 } from '../lib/tafPlanData';
+import RunPlanEditor from './RunPlanEditor';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface TafPlanViewProps {
   runs?: RunLog[];
   onStartRunFromTaf: (workout: TafWorkoutDef, weekNumber: number) => void;
   onNavigateToRuns: () => void;
+  onSavePlan: (plan: RunPlanConfig) => void;
 }
 
 export default function TafPlanView({
   runs = [],
   onStartRunFromTaf,
-  onNavigateToRuns
+  onNavigateToRuns,
+  onSavePlan
 }: TafPlanViewProps) {
-  const currentStatus = useMemo(() => getTafCurrentStatus(), []);
+  const plan = useActivePlan();
+  const goal = plan.goal;
+  const [showEditor, setShowEditor] = useState(false);
+  const currentStatus = useMemo(() => getTafCurrentStatus(new Date(), plan), [plan]);
+  const phases = useMemo(() => derivePhases(plan), [plan]);
 
   // Today day of week: 0 = Dom, 1 = Seg, ..., 6 = Sab
   const todayDay = useMemo(() => new Date().getDay(), []);
@@ -52,13 +58,14 @@ export default function TafPlanView({
   // Selected week to inspect (defaults to current or week 1)
   const activeWeekNumber = currentStatus.currentWeekNumber > 0 ? currentStatus.currentWeekNumber : 1;
   const activeWeek = useMemo(() => {
-    return TAF_WEEKS.find(w => w.weekNumber === activeWeekNumber) || TAF_WEEKS[0];
-  }, [activeWeekNumber]);
+    return plan.weeks.find(w => w.weekNumber === activeWeekNumber) || plan.weeks[0];
+  }, [activeWeekNumber, plan]);
 
   // Check if a specific workout key was completed this week
   const isWorkoutCompleted = (workoutKey: 'A' | 'B' | 'C', week: TafWeekDef) => {
     return runs.some(r => {
       if (r.tafWeekNumber && r.tafWeekNumber === week.weekNumber) {
+        if (r.tafWorkoutKey) return r.tafWorkoutKey === workoutKey;
         if (workoutKey === 'A' && r.type === 'A leve/continuo') return true;
         if (workoutKey === 'B' && r.type === 'B fartlek ou trote-caminhada') return true;
         if (workoutKey === 'C' && (r.type === 'C moderado ou tiros' || r.type === 'Simulado 12 min')) return true;
@@ -98,27 +105,36 @@ export default function TafPlanView({
                 <Target className="w-4 h-4 stroke-[2.2]" />
               </div>
               <span className="text-[12px] font-semibold text-[#2DD4BF] uppercase tracking-wide">
-                Plano TAF de 17 Semanas
+                {plan.name}
               </span>
             </div>
 
             <h1 className="text-[22px] sm:text-[24px] font-semibold text-[#F2F3F5] tracking-tight">
               {currentStatus.isBeforeStart ? (
-                <>O plano começa em 16/11 <span className="text-[15px] font-normal text-[#9AA1AD]">(faltam {currentStatus.daysUntilStart} dias)</span></>
+                <>O plano começa em {currentStatus.startDateFormatted.slice(0, 5)} <span className="text-[15px] font-normal text-[#9AA1AD]">(faltam {currentStatus.daysUntilStart} dias)</span></>
               ) : (
-                <>Semana {currentStatus.currentWeekNumber} de 17 • {activeWeek.phaseName}</>
+                <>{currentStatus.isAfterEnd ? 'Plano concluído' : `Semana ${currentStatus.currentWeekNumber} de ${plan.weeks.length} • ${activeWeek.phaseName}`}</>
               )}
             </h1>
           </div>
 
-          {/* Contagem regressiva até a prova */}
+          {/* Contagem regressiva até a meta + editar plano */}
+          <div className="flex flex-col items-stretch gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowEditor(true)}
+            className="min-h-[40px] px-3.5 rounded-[12px] bg-[#1C1F26] hover:bg-[#252a35] border border-[rgba(255,255,255,0.07)] text-[#F2F3F5] text-[13px] font-medium flex items-center justify-center gap-1.5 transition cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Editar plano e meta
+          </button>
           <div className="p-3 rounded-[14px] bg-[#1C1F26] border border-[rgba(255,255,255,0.05)] self-start sm:self-auto text-left sm:text-right">
             <span className="text-[11px] text-[#6B7280] font-medium block">
               Contagem regressiva
             </span>
             <p className="text-[18px] font-semibold text-[#F2F3F5] tabular-nums mt-0.5">
-              {currentStatus.daysUntilTaf} dias <span className="text-[12px] text-[#2DD4BF] font-normal">até a prova</span>
+              {currentStatus.daysUntilTaf} dias <span className="text-[12px] text-[#2DD4BF] font-normal">até a meta</span>
             </p>
+          </div>
           </div>
         </div>
 
@@ -138,14 +154,27 @@ export default function TafPlanView({
           </div>
         </div>
 
-        {/* Meta da Prova Banner Discreto */}
+        {currentStatus.isAfterEnd && (
+          <div className="p-3 rounded-[14px] bg-[#7C6CFF]/10 border border-[#7C6CFF]/30 flex flex-wrap items-center justify-between gap-2 text-[13px] text-[#F2F3F5]">
+            <span>Plano concluído. Crie um novo plano ou ajuste a meta para continuar treinando.</span>
+            <button
+              type="button"
+              onClick={() => setShowEditor(true)}
+              className="min-h-[36px] px-3.5 rounded-[10px] bg-[#7C6CFF] hover:bg-[#8E80FF] text-white text-[12px] font-semibold cursor-pointer transition"
+            >
+              Criar novo plano
+            </button>
+          </div>
+        )}
+
+        {/* Meta Banner Discreto */}
         <div className="p-3 rounded-[14px] bg-[#1C1F26]/60 border border-[rgba(255,255,255,0.04)] flex flex-wrap items-center justify-between gap-2 text-[12px]">
           <span className="text-[#9AA1AD] flex items-center gap-1.5">
             <Award className="w-4 h-4 text-[#2DD4BF]" />
-            <span>Meta Oficial: <strong>2.200 m</strong> em 12 minutos na esteira (1% inclinação)</span>
+            <span>Meta: <strong>{metersLabel(goal.distanceMeters)}</strong> em {goal.minutes} minutos na esteira (1% inclinação)</span>
           </span>
           <span className="font-mono text-[#2DD4BF] font-semibold">
-            11,0 km/h • 5:27/km
+            {goalSpeedKmh(goal).toFixed(1).replace('.', ',')} km/h • {goalPaceStr(goal)}
           </span>
         </div>
       </section>
@@ -154,7 +183,7 @@ export default function TafPlanView({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-[17px] font-semibold text-[#F2F3F5]">
-            Esta semana {currentStatus.isBeforeStart ? '(Semana 1 • Base)' : `(Semana ${currentStatus.currentWeekNumber})`}
+            Esta semana {currentStatus.isBeforeStart ? `(Semana 1 • ${activeWeek.phaseName})` : `(Semana ${currentStatus.currentWeekNumber})`}
           </h2>
           <span className="text-[12px] text-[#9AA1AD]">
             {activeWeek.startDate} a {activeWeek.endDate}
@@ -164,7 +193,7 @@ export default function TafPlanView({
         <div className="space-y-2.5">
           {(['A', 'B', 'C'] as const).map((key) => {
             const workout = activeWeek.workouts[key];
-            const isToday = (key === 'A' && todayDay === 1) || (key === 'B' && todayDay === 3) || (key === 'C' && todayDay === 6);
+            const isToday = !currentStatus.isBeforeStart && !currentStatus.isAfterEnd && workout.suggestedDurationMinutes > 0 && workout.dayOfWeek === todayDay;
             const isCompleted = isWorkoutCompleted(key, activeWeek);
             const isExpanded = expandedWorkoutKey === key;
 
@@ -310,16 +339,16 @@ export default function TafPlanView({
         </div>
       </section>
 
-      {/* 3. 'TODAS AS SEMANAS': ACORDEÃO POR FASE (FASES 1 A 4) */}
+      {/* 3. 'TODAS AS SEMANAS': ACORDEÃO POR FASE (FASES 1 A 7) */}
       <section className="space-y-3">
         <h2 className="text-[17px] font-semibold text-[#F2F3F5]">
           Todas as semanas por fase
         </h2>
 
         <div className="space-y-2">
-          {TAF_PHASES_INFO.map((phase) => {
+          {phases.map((phase) => {
             const isPhaseExpanded = expandedPhaseNumber === phase.phase;
-            const phaseWeeks = TAF_WEEKS.filter(w => w.phaseNumber === phase.phase);
+            const phaseWeeks = plan.weeks.filter(w => w.phaseNumber === phase.phase);
 
             return (
               <div
@@ -348,7 +377,7 @@ export default function TafPlanView({
 
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-[#6B7280]">
-                      {phaseWeeks.length} semanas
+                      {phaseWeeks.length} {phaseWeeks.length === 1 ? 'semana' : 'semanas'}
                     </span>
                     {isPhaseExpanded ? <ChevronUp className="w-4 h-4 text-[#9AA1AD]" /> : <ChevronDown className="w-4 h-4 text-[#9AA1AD]" />}
                   </div>
@@ -404,6 +433,16 @@ export default function TafPlanView({
         </div>
       </section>
 
+      {showEditor && (
+        <RunPlanEditor
+          plan={plan}
+          onClose={() => setShowEditor(false)}
+          onSave={(next) => {
+            onSavePlan(next);
+            setShowEditor(false);
+          }}
+        />
+      )}
     </div>
   );
 }
