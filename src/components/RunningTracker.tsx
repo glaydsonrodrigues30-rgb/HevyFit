@@ -156,6 +156,12 @@ export default function RunningTracker({
     return isNaN(val) || val <= 0 ? 0 : val;
   }, [distanceKm]);
 
+  // Botões + e -: o estado é texto, então soma sobre o número já interpretado
+  const bumpDistance = (delta: number) => {
+    const next = Math.max(0.1, Number((parsedDistance + delta).toFixed(2)));
+    setDistanceKm(String(next));
+  };
+
   // Live stats calculation (calculated only when duration and distance are valid)
   const calculatedStats = useMemo(() => {
     if (durationMinutes <= 0 || parsedDistance <= 0) {
@@ -714,7 +720,7 @@ export default function RunningTracker({
                     <div className="flex items-center justify-between gap-1">
                       <button
                         type="button"
-                        onClick={() => setDistanceKm(prev => Math.max(0.1, Number((prev - 0.1).toFixed(2))))}
+                        onClick={() => bumpDistance(-0.1)}
                         className="w-9 h-9 rounded-[10px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] text-[#F2F3F5] flex items-center justify-center hover:bg-[#252a35] transition cursor-pointer shrink-0"
                       >
                         <Minus className="w-4 h-4" />
@@ -726,12 +732,12 @@ export default function RunningTracker({
                         step="0.01"
                         inputMode="decimal"
                         value={distanceKm || ''}
-                        onChange={(e) => setDistanceKm(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => setDistanceKm(e.target.value)}
                         className="w-full text-center text-[22px] font-semibold text-[#F2F3F5] bg-transparent outline-none tabular-nums"
                       />
                       <button
                         type="button"
-                        onClick={() => setDistanceKm(prev => Number((prev + 0.1).toFixed(2)))}
+                        onClick={() => bumpDistance(0.1)}
                         className="w-9 h-9 rounded-[10px] bg-[#15171C] border border-[rgba(255,255,255,0.08)] text-[#F2F3F5] flex items-center justify-center hover:bg-[#252a35] transition cursor-pointer shrink-0"
                       >
                         <Plus className="w-4 h-4" />

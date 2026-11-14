@@ -936,7 +936,9 @@ export default function App() {
 
   // Treadmill Run Handlers
   const handleSaveRun = async (newRun: RunLog) => {
-    const updated = [newRun, ...runs.filter(r => r.id !== newRun.id)];
+    // Firestore recusa campos undefined: remove antes de gravar
+    const cleanRun = JSON.parse(JSON.stringify(newRun)) as RunLog;
+    const updated = [cleanRun, ...runs.filter(r => r.id !== cleanRun.id)];
     setRuns(updated);
     localStorage.setItem('hevyfit_runs', JSON.stringify(updated));
 
@@ -945,7 +947,7 @@ export default function App() {
         await setDoc(doc(db, 'users', currentUser.uid), {
           runs: updated
         }, { merge: true });
-        await saveRunLog(currentUser.uid, newRun);
+        await saveRunLog(currentUser.uid, cleanRun);
       } catch (error) {
         console.error('Error saving run session to Firebase:', error);
       }

@@ -362,7 +362,7 @@ export const saveRunLog = async (userId: string, run: RunLog) => {
   const path = `users/${userId}/runs/${run.id}`;
   try {
     const ref = doc(db, 'users', userId, 'runs', run.id);
-    await setDoc(ref, run);
+    await setDoc(ref, JSON.parse(JSON.stringify(run)));
   } catch (error) {
     console.error('Error saving run session:', error);
     handleFirestoreError(error, OperationType.WRITE, path);
