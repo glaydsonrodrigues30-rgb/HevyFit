@@ -345,12 +345,19 @@ export default function App() {
             }
 
             // Always update basic info to keep admin user list current
-            await setDoc(userDocRef, {
-              displayName: user.displayName || 'Sem nome',
-              email: user.email || '',
-              photoURL: user.photoURL || '',
-              lastSeen: new Date().toISOString()
-            }, { merge: true });
+            // Sem await e no máximo a cada 12h: não trava o carregamento nem gasta cota de gravação
+            try {
+              const lastTs = Number(localStorage.getItem('hevyfit_lastseen_ts') || 0);
+              if (Date.now() - lastTs > 12 * 60 * 60 * 1000) {
+                localStorage.setItem('hevyfit_lastseen_ts', String(Date.now()));
+                setDoc(userDocRef, {
+                  displayName: user.displayName || 'Sem nome',
+                  email: user.email || '',
+                  photoURL: user.photoURL || '',
+                  lastSeen: new Date().toISOString()
+                }, { merge: true }).catch(() => {});
+              }
+            } catch {}
 
           } else {
             // First time login - initialize with initial templates
