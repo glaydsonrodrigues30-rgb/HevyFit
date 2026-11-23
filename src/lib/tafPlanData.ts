@@ -809,3 +809,84 @@ export function getTodayTafWorkout(currentDate = new Date(), plan: RunPlanConfig
     status
   };
 }
+
+// ===== Passo a passo do treino (roteiro) =====
+export type StepKind = 'aquecer' | 'correr' | 'trote' | 'calma';
+
+export interface WorkoutStep {
+  kind: StepKind;
+  title: string;
+  detail: string;
+  seconds: number | null;
+}
+
+const kmhTxt = (v: number) => `${String(v).replace('.', ',')} km/h`;
+
+function minutesFromText(t: string): number | null {
+  const m = [...t.matchAll(/(\d+)\s*min/gi)].map(x => Number(x[1]));
+  return m.length ? m.reduce((a, b) => a + b, 0) : null;
+}
+
+export function buildWorkoutSteps(w: TafWorkoutDef): WorkoutStep[] {
+  const steps: WorkoutStep[] = [];
+  const wuMin = minutesFromText(w.warmup || '');
+  steps.push({ kind: 'aquecer', title: 'Aquecer', detail: w.warmup, seconds: wuMin ? wuMin * 60 : null });
+
+  const isTest = /teste|simulado/i.test(`${w.title} ${w.type}`);
+  if (w.intervals && w.intervals.length > 0) {
+    w.intervals.forEach((b, i) => {
+      steps.push({
+        kind: 'correr',
+        title: `Correr forte ${i + 1} de ${w.intervals!.length}`,
+        detail: b.speedKmh ? kmhTxt(b.speedKmh) : b.label,
+        seconds: b.durationSeconds,
+      });
+      if (b.restSeconds && b.restSeconds > 0) {
+        steps.push({
+          kind: 'trote',
+          title: 'Trotar leve (descanso)',
+          detail: w.suggestedSpeedMin ? kmhTxt(w.suggestedSpeedMin) : '6 km/h',
+          seconds: b.restSeconds,
+        });
+      }
+    });
+  } else if (isTest) {
+    steps.push({
+      kind: 'correr',
+      title: `Correr ${w.suggestedDurationMinutes} min sem parar`,
+      detail: 'Faça a maior distância possível. Comece a 9,5 km/h e vá subindo se estiver bem.',
+      seconds: w.suggestedDurationMinutes * 60,
+    });
+  } else {
+    steps.push({
+      kind: 'correr',
+      title: `Correr ${w.suggestedDurationMinutes} min contínuos`,
+      detail: `${w.suggestedSpeedRange}. Ritmo constante, sem parar.`,
+      seconds: w.suggestedDurationMinutes * 60,
+    });
+  }
+
+  const cdMin = minutesFromText(w.cooldown || '');
+  steps.push({ kind: 'calma', title: 'Desacelerar', detail: w.cooldown, seconds: cdMin ? cdMin * 60 : null });
+  return steps;
+}
+
+export function totalSeconds(steps: WorkoutStep[]): number {
+  return steps.reduce((a, s) => a + (s.seconds || 0), 0);
+}
+
+export function fmtClock(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function plainKind(w: TafWorkoutDef): string {
+  const t = `${w.title} ${w.type}`.toLowerCase();
+  if (/teste|simulado/.test(t)) return 'Teste de 12 min';
+  if (w.intervals && w.intervals.length > 0) return 'Tiros (corre forte e descansa)';
+  if (/leve/.test(t)) return 'Corrida leve';
+  return 'Corrida contínua';
+}
+
+export const DAY_ABBR = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];

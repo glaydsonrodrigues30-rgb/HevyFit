@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Target,
   Award,
@@ -13,7 +13,10 @@ import {
   Timer,
   Layers,
   ArrowRight,
-  Pencil
+  Pencil,
+  Pause,
+  RotateCcw,
+  SkipForward
 } from 'lucide-react';
 import { TafWeekDef, TafWorkoutDef, RunLog, RunPlanConfig } from '../types';
 import {
@@ -22,7 +25,13 @@ import {
   getTafCurrentStatus,
   goalPaceStr,
   goalSpeedKmh,
-  metersLabel
+  metersLabel,
+  buildWorkoutSteps,
+  fmtClock,
+  totalSeconds,
+  WorkoutStep,
+  DAY_ABBR,
+  plainKind
 } from '../lib/tafPlanData';
 import RunPlanEditor from './RunPlanEditor';
 import { motion, AnimatePresence } from 'motion/react';
@@ -221,7 +230,7 @@ export default function TafPlanView({
                           : 'bg-[#1C1F26] text-[#9AA1AD] border-[rgba(255,255,255,0.06)]'
                       }`}
                     >
-                      {isCompleted ? <CheckCircle2 className="w-5 h-5 stroke-[2.2]" /> : key}
+                      {isCompleted ? <CheckCircle2 className="w-5 h-5 stroke-[2.2]" /> : <span className="text-[10px]">{DAY_ABBR[workout.dayOfWeek ?? 0]}</span>}
                     </div>
 
                     <div className="min-w-0">
@@ -237,11 +246,9 @@ export default function TafPlanView({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#9AA1AD] mt-0.5">
-                        <span>{workout.dayName}</span>
+                        <span>{plainKind(workout)}</span>
                         <span>•</span>
                         <span className="tabular-nums">{workout.suggestedDurationMinutes} min</span>
-                        <span>•</span>
-                        <span>{workout.suggestedSpeedRange}</span>
                         <span className={`text-[10px] px-2 py-0.2 rounded-full border ${getIntensityBadge(workout.intensityLabel)}`}>
                           {workout.intensityLabel}
                         </span>
@@ -284,40 +291,7 @@ export default function TafPlanView({
                       exit={{ opacity: 0, height: 0 }}
                       className="px-4 pb-4 pt-1 border-t border-[rgba(255,255,255,0.05)] space-y-2.5 text-[12px]"
                     >
-                      <p className="text-[#9AA1AD] leading-relaxed pt-1">
-                        {workout.description}
-                      </p>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[#9AA1AD]">
-                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
-                          <span className="text-[#6B7280] block font-medium text-[10px]">Aquecimento</span>
-                          <span className="text-[#F2F3F5]">{workout.warmup}</span>
-                        </div>
-                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
-                          <span className="text-[#6B7280] block font-medium text-[10px]">Esteira</span>
-                          <span className="text-[#F2F3F5]">{workout.incline}</span>
-                        </div>
-                        <div className="p-2.5 rounded-[12px] bg-[#15171C]">
-                          <span className="text-[#6B7280] block font-medium text-[10px]">Volta à calma</span>
-                          <span className="text-[#F2F3F5]">{workout.cooldown}</span>
-                        </div>
-                      </div>
-
-                      {/* Lista de tiros se houver */}
-                      {workout.intervals && workout.intervals.length > 0 && (
-                        <div className="p-2.5 rounded-[12px] bg-[#15171C] space-y-1">
-                          <span className="text-[#2DD4BF] font-semibold text-[11px] block">
-                            Blocos / Tiros do Treino:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {workout.intervals.map((int, idx) => (
-                              <span key={int.id || idx} className="px-2 py-0.5 rounded bg-[#1C1F26] text-[#F2F3F5] font-mono text-[11px]">
-                                {int.label}: {int.speedKmh ? `${int.speedKmh} km/h` : ''}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="pt-2"><WorkoutRoteiro workout={workout} /></div>
 
                       {!isToday && (
                         <div className="pt-1 flex justify-end">
@@ -443,6 +417,115 @@ export default function TafPlanView({
           }}
         />
       )}
+    </div>
+  );
+}
+
+
+const COLORS: Record<string, string> = {
+  aquecer: 'text-[#FBBF24] bg-[#FBBF24]/15 border-[#FBBF24]/30',
+  correr: 'text-[#2DD4BF] bg-[#2DD4BF]/15 border-[#2DD4BF]/30',
+  trote: 'text-[#60A5FA] bg-[#60A5FA]/15 border-[#60A5FA]/30',
+  calma: 'text-[#A78BFA] bg-[#A78BFA]/15 border-[#A78BFA]/30',
+};
+
+export function WorkoutRoteiro({ workout }: { workout: TafWorkoutDef }) {
+  const steps: WorkoutStep[] = React.useMemo(() => buildWorkoutSteps(workout), [workout]);
+  const total = totalSeconds(steps);
+  const [guided, setGuided] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [left, setLeft] = useState(0);
+  const [running, setRunning] = useState(false);
+  const idxRef = useRef(0);
+
+  const startStep = (i: number) => {
+    idxRef.current = i;
+    setIdx(i);
+    setLeft(steps[i]?.seconds ?? 0);
+  };
+
+  useEffect(() => {
+    if (!guided || !running) return;
+    const t = setInterval(() => {
+      setLeft(prev => {
+        if (steps[idxRef.current]?.seconds == null) return prev;
+        if (prev > 1) return prev - 1;
+        const next = idxRef.current + 1;
+        try { navigator.vibrate?.([200, 100, 200]); } catch {}
+        if (next >= steps.length) { setRunning(false); return 0; }
+        idxRef.current = next;
+        setIdx(next);
+        return steps[next].seconds ?? 0;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [guided, running, steps]);
+
+  let clock = 0;
+  const rows = steps.map(s => {
+    const start = clock;
+    clock += s.seconds || 0;
+    return { s, start };
+  });
+
+  if (guided) {
+    const cur = steps[idx];
+    const nxt = steps[idx + 1];
+    const done = !running && idx >= steps.length - 1 && left === 0 && cur?.seconds != null;
+    return (
+      <div className="rounded-[16px] bg-[#15171C] border border-[rgba(255,255,255,0.07)] p-4 space-y-3 text-center">
+        <div className="text-[11px] text-[#9AA1AD]">Passo {idx + 1} de {steps.length}</div>
+        <div className={`inline-block px-3 py-1 rounded-full border text-[12px] font-semibold ${COLORS[cur.kind]}`}>{cur.title}</div>
+        <div className="text-[48px] leading-none font-semibold tabular-nums text-[#F2F3F5]">
+          {cur.seconds != null ? fmtClock(left) : 'Livre'}
+        </div>
+        <div className="text-[15px] text-[#F2F3F5] font-medium">{cur.detail}</div>
+        {nxt && (
+          <div className="text-[12px] text-[#9AA1AD]">Depois: {nxt.title}{nxt.seconds ? ` (${fmtClock(nxt.seconds)})` : ''}</div>
+        )}
+        {done && <div className="text-[13px] text-[#4ADE80] font-semibold">Treino concluído. Registre a corrida.</div>}
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <button type="button" onClick={() => setRunning(r => !r)} className="min-h-[44px] px-5 rounded-[12px] bg-[#2DD4BF] text-[#0E0F13] font-semibold text-[13px] flex items-center gap-2 cursor-pointer">
+            {running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}{running ? 'Pausar' : 'Iniciar'}
+          </button>
+          <button type="button" onClick={() => idx < steps.length - 1 && startStep(idx + 1)} className="min-h-[44px] px-3 rounded-[12px] bg-[#1C1F26] text-[#F2F3F5] text-[13px] flex items-center gap-1 cursor-pointer">
+            <SkipForward className="w-4 h-4" />Pular
+          </button>
+          <button type="button" onClick={() => { setRunning(false); startStep(0); }} className="min-h-[44px] px-3 rounded-[12px] bg-[#1C1F26] text-[#F2F3F5] text-[13px] flex items-center gap-1 cursor-pointer">
+            <RotateCcw className="w-4 h-4" />Zerar
+          </button>
+        </div>
+        <button type="button" onClick={() => { setRunning(false); setGuided(false); }} className="text-[12px] text-[#9AA1AD] underline cursor-pointer">Voltar à lista</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold text-[#F2F3F5]">Passo a passo {total ? `(${Math.round(total / 60)} min no total)` : ''}</span>
+        <button type="button" onClick={() => { startStep(0); setGuided(true); }} className="min-h-[36px] px-3 rounded-[10px] bg-[#2DD4BF] text-[#0E0F13] text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer">
+          <Play className="w-3.5 h-3.5" />Usar cronômetro
+        </button>
+      </div>
+      <ol className="space-y-1.5">
+        {rows.map(({ s, start }, i) => (
+          <li key={i} className="flex items-start gap-2.5 p-2.5 rounded-[12px] bg-[#15171C] border border-[rgba(255,255,255,0.05)]">
+            <span className={`shrink-0 w-6 h-6 rounded-full border text-[11px] font-semibold flex items-center justify-center ${COLORS[s.kind]}`}>{i + 1}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] font-semibold text-[#F2F3F5]">{s.title}</span>
+                <span className="text-[11px] tabular-nums text-[#9AA1AD] shrink-0">
+                  {s.seconds != null ? `${fmtClock(s.seconds)} min` : ''}
+                </span>
+              </div>
+              <p className="text-[12px] text-[#9AA1AD] leading-snug">{s.detail}</p>
+              {s.seconds != null && <p className="text-[10px] text-[#6B7280] tabular-nums mt-0.5">Relógio: {fmtClock(start)} a {fmtClock(start + s.seconds)}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="text-[11px] text-[#6B7280]">Esteira com 1% de inclinação.</p>
     </div>
   );
 }

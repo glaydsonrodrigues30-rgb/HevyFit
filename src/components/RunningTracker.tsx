@@ -1,3 +1,4 @@
+import { WorkoutRoteiro } from './TafPlanView';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Timer,
@@ -179,7 +180,8 @@ export default function RunningTracker({
   const isTargetAchieved = useMemo(() => {
     if (parsedDistance <= 0 || durationMinutes <= 0) return false;
     if (selectedChipType === 'Simulado 12 min') {
-      return distanceMeters >= goal.distanceMeters;
+      const eq = durationMinutes > goal.minutes ? distanceMeters * goal.minutes / durationMinutes : distanceMeters;
+      return eq >= goal.distanceMeters;
     }
     return calculatedStats.paceSecondsPerKm > 0 && calculatedStats.paceSecondsPerKm <= Math.round(3600 / goalKmh) && durationMinutes >= goal.minutes;
   }, [selectedChipType, distanceMeters, calculatedStats.paceSecondsPerKm, durationMinutes, parsedDistance, goal.distanceMeters, goal.minutes, goalKmh]);
@@ -288,7 +290,8 @@ export default function RunningTracker({
     const allSimulations = runs.filter(r => r.type === 'Simulado 12 min' || r.durationMinutes === goal.minutes);
     let bestSimMeters = 0;
     allSimulations.forEach(s => {
-      const m = Math.round((s.distanceKm || 0) * 1000);
+      const raw = (s.distanceKm || 0) * 1000;
+      const m = Math.round(s.durationMinutes > goal.minutes ? raw * goal.minutes / s.durationMinutes : raw);
       if (m > bestSimMeters) bestSimMeters = m;
     });
 
@@ -387,6 +390,8 @@ export default function RunningTracker({
                 Esteira a {todayTaf.todayWorkout.suggestedSpeedRange} • {todayTaf.todayWorkout.suggestedDurationMinutes} min • 1% de inclinação
               </p>
             </div>
+
+            <WorkoutRoteiro workout={todayTaf.todayWorkout} />
 
             <button
               id="btn-register-today-run"
@@ -574,7 +579,7 @@ export default function RunningTracker({
                         <span className="text-[14px] font-medium text-[#F2F3F5] truncate">
                           {run.type}
                         </span>
-                        {isSim && run.distanceKm >= 2.2 && (
+                        {isSim && (run.durationMinutes > goal.minutes ? run.distanceKm * 1000 * goal.minutes / run.durationMinutes : run.distanceKm * 1000) >= goal.distanceMeters && (
                           <span className="text-[10px] font-semibold text-[#4ADE80] bg-[#4ADE80]/15 px-1.5 py-0.5 rounded-full">
                             Meta OK
                           </span>
