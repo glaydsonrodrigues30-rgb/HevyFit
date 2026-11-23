@@ -204,6 +204,7 @@ export default function App() {
   const [weightHistory, setWeightHistory] = useState<WeightEntry[]>([]);
   const [currentCycle, setCurrentCycle] = useState<TrainingCycle | null>(null);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
+  const activeSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
   const [standardWorkouts, setStandardWorkouts] = useState<StandardWorkout[]>([]);
@@ -489,7 +490,7 @@ export default function App() {
           setExercises(data.exercises);
         }
 
-        if (data.activeWorkout !== undefined) {
+        if (data.activeWorkout !== undefined && !activeSaveTimer.current) {
           setActiveWorkout(data.activeWorkout as ActiveWorkout | null);
         }
 
@@ -577,6 +578,7 @@ export default function App() {
   };
 
   const handleCancelWorkout = async () => {
+    if (activeSaveTimer.current) { clearTimeout(activeSaveTimer.current); activeSaveTimer.current = null; }
     setActiveWorkout(null);
     if (currentUser && auth.currentUser) {
       try {
@@ -622,6 +624,7 @@ export default function App() {
 
     const updatedHistory = [...history, completedHistoryEntry];
     setHistory(updatedHistory);
+    if (activeSaveTimer.current) { clearTimeout(activeSaveTimer.current); activeSaveTimer.current = null; }
 
     // Save to Firestore if user is authenticated
     if (currentUser && auth.currentUser) {
@@ -1469,16 +1472,17 @@ export default function App() {
             onStartWorkout={handleStartWorkout}
             onCancelWorkout={handleCancelWorkout}
             onFinishWorkout={handleFinishWorkout}
-            onUpdateActiveWorkout={async (w) => {
+            onUpdateActiveWorkout={(w) => {
               setActiveWorkout(w);
+              // Salvamento na nuvem com debounce de 20 s (economiza a cota de gravações do Firestore)
               if (currentUser && auth.currentUser) {
-                try {
-                  await setDoc(doc(db, 'users', currentUser.uid), {
-                    activeWorkout: w
-                  }, { merge: true });
-                } catch (error) {
-                  console.error('Error auto-saving active workout:', error);
-                }
+                const uid = currentUser.uid;
+                if (activeSaveTimer.current) clearTimeout(activeSaveTimer.current);
+                activeSaveTimer.current = setTimeout(() => {
+                  activeSaveTimer.current = null;
+                  setDoc(doc(db, 'users', uid), { activeWorkout: JSON.parse(JSON.stringify(w)) }, { merge: true })
+                    .catch((error) => console.error('Error auto-saving active workout:', error));
+                }, 20000);
               }
             }}
             onTriggerRestTimer={handleTriggerRestTimer}
